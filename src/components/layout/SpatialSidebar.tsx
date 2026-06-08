@@ -1,19 +1,27 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Terminal, Smartphone, MonitorPlay, Film, Play, Crown, Volume2,
-  Cpu, FolderKanban, Palette, Settings2
+  Cpu, FolderKanban, Palette, Settings2, Radar, Share2, Brain
 } from 'lucide-react';
 import { useDemoScript } from '@/hooks/useDemoScript';
 import { useCampaignStore } from '@/store/useCampaignStore';
 import TokenTelemetry from '@/components/dashboard/TokenTelemetry';
+import { useAuth } from '@/contexts/AuthContext';
 
-// 🟢 LOS MÓDULOS EXACTOS (Conservando Commercial Lab)
-const LAB_LINKS = [
+// 🟢 MÓDULOS PÚBLICOS (visibles para todos los usuarios autenticados)
+const PUBLIC_LAB_LINKS = [
   { name: 'Command Hub', path: '/dashboard/hub', icon: Terminal },
+  { name: 'Nexus Brain', path: '/dashboard/nexus-brain', icon: Brain },
   { name: 'Social Lab', path: '/dashboard/social', icon: Smartphone },
   { name: 'Virtual OOH', path: '/dashboard/ooh', icon: MonitorPlay },
-  { name: 'Commercial Lab', path: '/dashboard/commercial-lab', icon: Film }, // Corrección de ruta para que coincida con Index.tsx
-  { name: 'Task Replay', path: '/dashboard/executive-demo', icon: Play } // La antigua Executive Demo renombrada
+  { name: 'Commercial Lab', path: '/dashboard/commercial-lab', icon: Film },
+  { name: 'Task Replay', path: '/dashboard/executive-demo', icon: Play },
+];
+
+// 🟢 MÓDULOS ADMINISTRATIVOS (SOLO para davicho4522@gmail.com)
+const ADMIN_LAB_LINKS = [
+  { name: 'Community Lab', path: '/dashboard/community', icon: Radar },
+  { name: 'Omnichannel', path: '/dashboard/publisher', icon: Share2 }
 ];
 
 // 🟢 MÓDULOS PREMIUM
@@ -21,11 +29,15 @@ const PREMIUM_LINKS = [
   { name: 'Subscription', path: '/dashboard/subscription', icon: Crown }
 ];
 
-// 🟢 MÓDULOS DEL SISTEMA
-const SYSTEM_LINKS = [
+// 🟢 MÓDULOS DEL SISTEMA - Separados por acceso
+const PUBLIC_SYSTEM_LINKS = [
+  { name: 'Configuración', path: '/settings', icon: Settings2 }
+];
+
+// 🟢 MÓDULOS DEL SISTEMA ADMIN (SOLO para davicho4522@gmail.com)
+const ADMIN_SYSTEM_LINKS = [
   { name: 'Visual Matrix', path: '/dashboard/visual-matrix', icon: Palette },
   { name: 'Audio Matrix', path: '/dashboard/audio-matrix', icon: Volume2 },
-  { name: 'Configuración', path: '/settings', icon: Settings2 }
 ];
 
 export default function SpatialSidebar() {
@@ -34,8 +46,15 @@ export default function SpatialSidebar() {
   const { runFullDemo, isDemoRunning, currentStep } = useDemoScript();
   const workspace = useCampaignStore((state) => state.workspace);
   const ceoCommand = useCampaignStore((state) => state.ceoCommand);
+  const { user } = useAuth();
+
+  const isAdmin = user?.email === 'davicho4522@gmail.com';
 
   const workspaceName = ceoCommand ? (ceoCommand.length > 15 ? ceoCommand.substring(0, 15) + '...' : ceoCommand) : 'Active Workspace';
+
+  // Combinar enlaces según el rol
+  const allLabLinks = [...PUBLIC_LAB_LINKS, ...(isAdmin ? ADMIN_LAB_LINKS : [])];
+  const allSystemLinks = [...(isAdmin ? ADMIN_SYSTEM_LINKS : []), ...PUBLIC_SYSTEM_LINKS];
 
   return (
     <nav className="relative z-20 w-20 lg:w-64 h-screen p-4 flex flex-col gap-4">
@@ -76,7 +95,7 @@ export default function SpatialSidebar() {
         <div className="mb-4 shrink-0">
           <span className="hidden lg:block text-[10px] font-mono uppercase tracking-widest text-zinc-500 mb-4 px-4">The Labs</span>
           <div className="flex flex-col gap-2">
-            {LAB_LINKS.map((link) => {
+            {allLabLinks.map((link) => {
               const Icon = link.icon;
               // 🔴 LA CORRECCIÓN DEL ENRUTAMIENTO (Mata el bug del Social Lab iluminado)
               const isActive = location.pathname === link.path || (link.path === '/dashboard/hub' && location.pathname === '/dashboard');
@@ -136,7 +155,7 @@ export default function SpatialSidebar() {
         {/* System */}
         <div className="mt-auto shrink-0">
           <div className="flex flex-col gap-2">
-            {SYSTEM_LINKS.map((link) => {
+            {allSystemLinks.map((link) => {
               const Icon = link.icon;
               const isActive = location.pathname === link.path;
 

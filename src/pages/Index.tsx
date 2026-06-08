@@ -1,5 +1,5 @@
 import { Suspense, lazy, useState, useEffect } from 'react';
-import { Routes, Route, useNavigate, useLocation, Link } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, Link, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Command, BrainCircuit, Users, Video, BarChart3, DollarSign, LayoutTemplate, Zap, Wifi, WifiOff, Globe, Loader2, Smartphone, MonitorPlay, Home
@@ -35,6 +35,9 @@ const StudioLab = lazy(() => import('@/components/dashboard/StudioLab'));
 const CommercialLab = lazy(() => import('@/components/dashboard/CommercialLab'));
 const ExecutiveDemo = lazy(() => import('@/components/dashboard/ExecutiveDemo'));
 const SubscriptionPlans = lazy(() => import('@/components/dashboard/SubscriptionPlans'));
+const CommunityLab = lazy(() => import('@/components/dashboard/CommunityLab'));
+const NexusBrain = lazy(() => import('@/components/dashboard/NexusBrain'));
+const OmniPublisher = lazy(() => import('@/components/dashboard/publisher/OmniPublisher'));
 
 const CommandHub = lazy(() => import('@/components/dashboard/CommandHub'));
 const EtherAgentWelcome = lazy(() => import('@/components/dashboard/EtherAgentWelcome'));
@@ -136,7 +139,7 @@ const DashboardLayout = ({ children, location }: { children: React.ReactNode; lo
   }, []);
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen w-full bg-black text-white font-sans overflow-y-auto">
+    <div className="flex flex-col md:flex-row min-h-screen w-full bg-black text-white font-sans overflow-hidden">
       {/* FONDO ESPACIAL GLOBAL */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-600/20 blur-[120px] rounded-full mix-blend-screen animate-pulse" />
@@ -145,8 +148,8 @@ const DashboardLayout = ({ children, location }: { children: React.ReactNode; lo
       </div>
 
       {!isMobile && <DesktopSidebar pathname={location} />}
-      <main className="flex-1 overflow-y-auto relative z-10">
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-6 py-8 md:p-10 pb-24 md:pb-10">
+      <main className="flex-1 min-h-[100dvh] overflow-y-scroll overflow-x-hidden relative z-10 touch-pan-y" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 md:p-10 pb-28 md:pb-10">
           <Suspense fallback={<ComponentLoader />}>
             <PageTransition location={location}>
               {children}
@@ -160,6 +163,19 @@ const DashboardLayout = ({ children, location }: { children: React.ReactNode; lo
 };
 
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useAuth } from '@/contexts/AuthContext';
+
+const ADMIN_EMAIL = 'davicho4522@gmail.com';
+
+const AdminRouteGuard = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useAuth();
+  
+  if (user?.email !== ADMIN_EMAIL) {
+    return <Navigate to="/dashboard/hub" replace />;
+  }
+  
+  return <>{children}</>;
+};
 
 export default function Index() {
   const location = useLocation();
@@ -200,8 +216,8 @@ export default function Index() {
   return (
     <DashboardLayout location={location.pathname}>
       <Routes>
-        <Route path="/" element={<CommandHub />} />
-        <Route path="hub" element={<ProtectedRoute><EtherAgentWelcome /></ProtectedRoute>} />
+        <Route path="/" element={<ProtectedRoute><EtherAgentWelcome /></ProtectedRoute>} />
+        <Route path="hub" element={<CommandHub />} />
         <Route path="nexus" element={<ProtectedRoute><NexusDashboard /></ProtectedRoute>} />
         <Route path="social" element={<ProtectedRoute><SocialLab /></ProtectedRoute>} />
         <Route path="ooh" element={<ProtectedRoute><VirtualOOHLab /></ProtectedRoute>} />
@@ -216,13 +232,16 @@ export default function Index() {
         <Route path="pricing" element={<ProtectedRoute><PricingPlans /></ProtectedRoute>} />
         <Route path="deployment" element={<ProtectedRoute><DeploymentSequence /></ProtectedRoute>} />
         <Route path="exchange" element={<ProtectedRoute><GlobalExchange /></ProtectedRoute>} />
-        <Route path="audio-matrix" element={<ProtectedRoute><NeuralAudioMatrix /></ProtectedRoute>} />
-        <Route path="visual-matrix" element={<ProtectedRoute><VisualAssetMatrix /></ProtectedRoute>} />
+        <Route path="audio-matrix" element={<ProtectedRoute><AdminRouteGuard><NeuralAudioMatrix /></AdminRouteGuard></ProtectedRoute>} />
+        <Route path="visual-matrix" element={<ProtectedRoute><AdminRouteGuard><VisualAssetMatrix /></AdminRouteGuard></ProtectedRoute>} />
         <Route path="sonic" element={<ProtectedRoute><SonicLab /></ProtectedRoute>} />
         <Route path="studio-lab" element={<ProtectedRoute><StudioLab /></ProtectedRoute>} />
         <Route path="commercial-lab" element={<ProtectedRoute><CommercialLab /></ProtectedRoute>} />
+        <Route path="nexus-brain" element={<ProtectedRoute><NexusBrain /></ProtectedRoute>} />
         <Route path="executive-demo" element={<ProtectedRoute><ExecutiveDemo /></ProtectedRoute>} />
         <Route path="subscription" element={<ProtectedRoute><SubscriptionPlans /></ProtectedRoute>} />
+        <Route path="community" element={<ProtectedRoute><AdminRouteGuard><CommunityLab /></AdminRouteGuard></ProtectedRoute>} />
+        <Route path="publisher" element={<ProtectedRoute><AdminRouteGuard><OmniPublisher /></AdminRouteGuard></ProtectedRoute>} />
       </Routes>
     </DashboardLayout>
   );
