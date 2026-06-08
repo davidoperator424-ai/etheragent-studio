@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Terminal, Globe, Send, Loader2, 
@@ -46,49 +46,8 @@ export default function CommandHub() {
   const { balance, isLoading: tokensLoading } = useTokenBalance();
   const [url, setUrl] = useState('');
   const [status, setStatus] = useState<ScrapingState>('idle');
-  const [currentCampaignId, setCurrentCampaignId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDeploying, setIsDeploying] = useState(false);
-  
-  // Real-time subscription
-  useEffect(() => {
-    if (!currentCampaignId) return;
-
-    console.log(`[Realtime] Subscribing to campaign: ${currentCampaignId}`);
-    
-    const channel = supabase
-      .channel(`campaign-${currentCampaignId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'campaigns',
-          filter: `id=eq.${currentCampaignId}`
-        },
-        (payload) => {
-          const newStatus = payload.new.scraping_status as ScrapingState;
-          console.log(`[Realtime] Status update: ${newStatus}`);
-          setStatus(newStatus);
-          
-          if (newStatus === 'completed') {
-            console.log('[Realtime] Campaign processing complete!');
-            sessionStorage.setItem('current_campaign', JSON.stringify(payload.new));
-            setTimeout(() => navigate('/dashboard/social'), 2000);
-          }
-          
-          if (newStatus === 'failed') {
-            setError('La ingestión de datos falló. Verifica la URL.');
-            setStatus('idle');
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [currentCampaignId, navigate]);
 
   const handleScrape = async () => {
     if (!url.trim() || status !== 'idle') return;
@@ -113,15 +72,30 @@ export default function CommandHub() {
       });
 
       if (!response.ok) {
-        throw new Error('Error al iniciar el scraping');
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Error al iniciar el scraping');
       }
 
       const data = await response.json();
-      setCurrentCampaignId(data.campaignId);
+      setStatus('processing');
       
-    } catch (err) {
+      // Fetch the completed campaign
+      const { data: campaign } = await supabase
+        .from('campaigns')
+        .select('*')
+        .eq('id', data.campaignId)
+        .single();
+
+      if (campaign) {
+        sessionStorage.setItem('current_campaign', JSON.stringify(campaign));
+      }
+      
+      setStatus('completed');
+      setTimeout(() => navigate('/dashboard/social'), 1500);
+      
+    } catch (err: any) {
       console.error(err);
-      setError('Error de conexión con el Hub.');
+      setError(err.message || 'Error de conexión con el Hub.');
       setStatus('idle');
     }
   };

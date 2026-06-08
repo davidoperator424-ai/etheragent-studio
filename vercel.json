@@ -2,6 +2,11 @@
   "framework": "vite",
   "buildCommand": "bun run build",
   "outputDirectory": "dist",
+  "functions": {
+    "api/scrape.ts": {
+      "maxDuration": 30
+    }
+  },
   "headers": [
     {
       "source": "/audio/agents/(.*)",
