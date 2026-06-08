@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-export const runtime = 'nodejs';
+export const config = { runtime: 'edge' };
 
 const SYSTEM_PROMPT = `Eres Marcus, el Director de Estrategia B2B de EtherAgent OS.
 Se te entregará el contenido en crudo (Scrape Data) extraído de la URL objetivo del cliente.
@@ -85,7 +85,7 @@ export default async function handler(req: Request) {
         owner_id: userId,
         title: `Campaña: ${new URL(url).hostname}`,
         source_url: url,
-        status: 'pending',
+        status: 'draft',
         scraping_status: 'scraping',
         brand_context: {}
       })
@@ -140,9 +140,9 @@ export default async function handler(req: Request) {
       .from('campaigns')
       .update({
         brand_context: analysis.brand_context,
-        metadata: analysis.escenas,
+        metrics: { escenas: analysis.escenas },
         scraping_status: 'completed',
-        status: 'completed'
+        status: 'deployed'
       })
       .eq('id', campaign.id);
 
