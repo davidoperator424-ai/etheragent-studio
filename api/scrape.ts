@@ -20,7 +20,7 @@ PROHIBIDO: Usar lenguaje infantil, metáforas mágicas o exceso de emojis. Eres 
 Retorna SOLO un JSON válido:
 {
   "brand_context": { "tone": "...", "pain_point": "...", "value_prop": "..." },
-  "escenas": [ { "id": 1, "prompt_imagen": "...", "copy": "..." } ]
+  "escenas": [ { "id": 1, "tipo": "social", "imageUrl": "...", "copy": "..." } ]
 }`;
 
 function getSupabaseAdmin() {
