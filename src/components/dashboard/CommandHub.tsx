@@ -43,7 +43,7 @@ const AGENTS: Record<string, AgentStatus> = {
 
 export default function CommandHub() {
   const navigate = useNavigate();
-  const { balance } = useTokenBalance();
+  const { balance, isLoading: tokensLoading } = useTokenBalance();
   const [url, setUrl] = useState('');
   const [status, setStatus] = useState<ScrapingState>('idle');
   const [currentCampaignId, setCurrentCampaignId] = useState<string | null>(null);
@@ -92,6 +92,7 @@ export default function CommandHub() {
 
   const handleScrape = async () => {
     if (!url.trim() || status !== 'idle') return;
+    if (tokensLoading) return;
     
     if (!balance.isInfinite && balance.computeTokens <= 0) {
       navigate('/dashboard/subscription');
@@ -178,7 +179,7 @@ export default function CommandHub() {
 
               <CyberButton 
                 onClick={handleScrape}
-                disabled={status !== 'idle' || !url.trim()}
+                disabled={status !== 'idle' || !url.trim() || tokensLoading}
                 className="w-full h-14 text-lg group"
                 variant="primary"
               >

@@ -56,9 +56,23 @@
     @apply border-border;
   }
 
+  html {
+    height: 100%;
+    overflow-x: hidden;
+  }
+
   body {
-    @apply bg-background text-foreground antialiased selection:bg-emerald-500/30 overflow-hidden;
+    @apply bg-background text-foreground antialiased selection:bg-emerald-500/30;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+
+  #root {
+    height: 100%;
   }
 }
 

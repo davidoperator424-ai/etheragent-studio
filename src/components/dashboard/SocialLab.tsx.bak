@@ -1,0 +1,737 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import { Sparkles, Zap, Loader2, Upload, Video, Image as ImageIcon, Film, Heart, MessageCircle, Share2, MoreHorizontal, UserCircle2, Bookmark, Send, Play, Pause, TrendingUp, Eye } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { CAMPAIGN_ZERO_DATA } from '@/constants/DemoCampaignZero';
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+let currentAudio: HTMLAudioElement | null = null;
+let currentTimeout: NodeJS.Timeout | null = null;
+
+const stopCurrentAudio = () => {
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.currentTime = 0;
+    currentAudio = null;
+  }
+  if (currentTimeout) {
+    clearTimeout(currentTimeout);
+    currentTimeout = null;
+  }
+};
+
+const playSupabaseAudio = (fileName: string, abortSignal?: { aborted: boolean }): Promise<void> => {
+  return new Promise((resolve) => {
+    if (abortSignal?.aborted) {
+      resolve();
+      return;
+    }
+
+    const baseUrl = "https://njhifpbnrbbhbmwgedtz.supabase.co/storage/v1/object/public/system-audio/";
+    const premiumFileName = fileName.includes('_premium') 
+      ? fileName 
+      : fileName.replace('.mp3', '_premium.mp3');
+    const timestamp = new Date().getTime();
+    
+    currentTimeout = setTimeout(() => {
+      console.log(`[Audio Timeout] ${premiumFileName} - continuando...`);
+      currentAudio = null;
+      currentTimeout = null;
+      resolve();
+    }, 15000);
+
+    try {
+      const audio = new Audio(`${baseUrl}${premiumFileName}?t=${timestamp}`);
+      audio.volume = 0.8;
+      currentAudio = audio;
+      
+      audio.onended = () => {
+        if (currentTimeout) {
+          clearTimeout(currentTimeout);
+          currentTimeout = null;
+        }
+        currentAudio = null;
+        console.log(`✅ Audio terminado: ${premiumFileName}`);
+        resolve();
+      };
+      
+      audio.onerror = () => {
+        if (currentTimeout) {
+          clearTimeout(currentTimeout);
+          currentTimeout = null;
+        }
+        currentAudio = null;
+        console.warn(`[Audio Error] ${premiumFileName}`);
+        resolve();
+      };
+      
+      audio.play().then(() => {
+        console.log(`▶ Reproduciendo: ${premiumFileName}`);
+      }).catch((err) => {
+        if (currentTimeout) {
+          clearTimeout(currentTimeout);
+          currentTimeout = null;
+        }
+        currentAudio = null;
+        console.warn(`[Audio Silenciado] No se pudo reproducir ${premiumFileName}:`, err);
+        resolve();
+      });
+    } catch (error) {
+      if (currentTimeout) {
+        clearTimeout(currentTimeout);
+        currentTimeout = null;
+      }
+      currentAudio = null;
+      console.warn("[Audio Silenciado] Error al instanciar Audio:", error);
+      resolve();
+    }
+  });
+};
+
+export default function SocialLab() {
+  const [mediaType, setMediaType] = useState<'video' | 'image'>('video');
+  const [videoFormat, setVideoFormat] = useState<'reel' | 'feed' | 'story'>('reel');
+  const [imageFormat, setImageFormat] = useState<'post' | 'story' | 'banner'>('post');
+
+  const [assets, setAssets] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [isCompiling, setIsCompiling] = useState(false);
+  const [chatStep, setChatStep] = useState(1);
+  const [isVideoExpanded, setIsVideoExpanded] = useState(false);
+  const [isVideoReady, setIsVideoReady] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [generatedAsset, setGeneratedAsset] = useState<{type: string, url: string} | null>(null);
+  const [isVideoFloating, setIsVideoFloating] = useState(false);
+  const [demoStarted, setDemoStarted] = useState(false);
+
+  const [displayedText, setDisplayedText] = useState('');
+  const [demoStatus, setDemoStatus] = useState<'idle' | 'rendering' | 'completed'>('idle');
+
+  const [demoState, setDemoState] = useState<'idle' | 'typing1' | 'typing2' | 'finished'>('idle');
+  const [chatMessages, setChatMessages] = useState<{role: 'user' | 'assistant', content: string, typing?: boolean}[]>([]);
+  const [mobileView, setMobileView] = useState<'idle' | 'rendering' | 'final_deployed'>('idle');
+
+  const [realVideoUrl, setRealVideoUrl] = useState<string | null>(null);
+
+  const valeriaScript1 = "Recibido, Marcus. Hola, David. Aquí la gestora de crecimiento. Tomando el render de los pavos y el audio quejumbroso. Aplicando cortes dinámicos, música Phonk de fondo y subtítulos de retención verde neón. Inyectando activo final en tu dispositivo de previsualización en 3... 2... 1...";
+  const valeriaScript2 = "Campaña Cero lista para dominar TikTok y Reels, CEO. Despliegue completado. Costo operativo: 0 Tokens (Cortesía de la casa). Tienes 1500 Tokens intactos. El teclado es tuyo.";
+  const valeriaFullText = "Aplicando cortes dinámicos, música Phonk de fondo y subtítulos de retención verde neón. Inyectando activo final en tu dispositivo en 3... 2... 1...";
+
+  const typingIntervalRef = useRef<number | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const isDemoAborted = useRef(false);
+
+  const getActiveAssetId = () => mediaType === 'video' ? `social_video_${videoFormat}` : `social_image_${imageFormat}`;
+  const activeAssetId = getActiveAssetId();
+  const currentAssetUrl = assets[activeAssetId];
+
+  useEffect(() => {
+    const fetchAssets = async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from('visual_assets')
+        .select('id, url')
+        .in('id', [
+          'social_video_reel', 'social_video_feed', 'social_video_story',
+          'social_image_post', 'social_image_story', 'social_image_banner'
+        ]);
+        
+      if (data) {
+        const loadedAssets: Record<string, string> = {};
+        data.forEach(item => loadedAssets[item.id] = item.url);
+        setAssets(loadedAssets);
+        
+        const reelAsset = data.find(item => item.id === 'social_video_reel');
+        if (reelAsset?.url) {
+          setRealVideoUrl(reelAsset.url);
+          console.log('📥 Fetched realVideoUrl from Supabase:', reelAsset.url);
+        }
+      }
+      setLoading(false);
+    };
+    fetchAssets();
+  }, []);
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `social_video_reel-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('visual-assets')
+        .upload(fileName, file, { cacheControl: '3600', upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('visual-assets')
+        .getPublicUrl(fileName);
+
+      const { error: dbError } = await supabase
+        .from('visual_assets')
+        .upsert({ id: 'social_video_reel', url: publicUrl, updated_at: new Date() });
+
+      if (dbError) throw dbError;
+
+      setAssets(prev => ({ ...prev, [activeAssetId]: publicUrl }));
+      setRealVideoUrl(publicUrl);
+      console.log('✅ Video subido, realVideoUrl actualizado:', publicUrl);
+      alert('Video subido y conectado con éxito.');
+    } catch (error) {
+      console.error('Error subiendo video:', error);
+      alert('Error al subir el video. Revisa la consola.');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleCompile = () => {
+    setIsCompiling(true);
+    setTimeout(() => { setIsCompiling(false); setChatStep(2); }, 2500);
+  };
+
+  const handleSkipDemo = useCallback(() => {
+    console.log('⏭️ Skip pulsado - Abortando coreografía');
+    isDemoAborted.current = true;
+    
+    stopCurrentAudio();
+    
+    const allAudios = document.querySelectorAll('audio');
+    allAudios.forEach(a => { a.pause(); a.currentTime = 0; });
+
+    setMobileView('final_deployed');
+    setDemoState('finished');
+    setChatMessages([
+      { role: 'assistant', content: valeriaScript1, typing: false },
+      { role: 'assistant', content: valeriaScript2, typing: false }
+    ]);
+  }, [valeriaScript1, valeriaScript2]);
+
+  const runDemoChoreography = useCallback(async () => {
+    isDemoAborted.current = false;
+    console.log('🚀 Iniciando demo...');
+    setDemoState('typing1');
+    setMobileView('rendering');
+    setChatMessages([]);
+
+    console.log('▶ Reproduciendo audio 1...');
+    await playSupabaseAudio('valeria_social_1_premium.mp3');
+    if (isDemoAborted.current) return;
+    console.log('✅ Audio 1 terminado');
+
+    const time1 = 12000;
+    const charTime1 = time1 / valeriaScript1.length;
+
+    for (let i = 0; i < valeriaScript1.length; i++) {
+      if (isDemoAborted.current) return;
+      setChatMessages([{ role: 'assistant', content: valeriaScript1.substring(0, i + 1), typing: true }]);
+      await new Promise(r => setTimeout(r, charTime1));
+    }
+    
+    if (isDemoAborted.current) return;
+    setChatMessages([{ role: 'assistant', content: valeriaScript1, typing: false }]);
+    
+    await new Promise(r => setTimeout(r, 1500));
+    if (isDemoAborted.current) return;
+    
+    setDemoState('typing2');
+
+    console.log('▶ Reproduciendo audio 2...');
+    await playSupabaseAudio('valeria_social_2_premium.mp3');
+    if (isDemoAborted.current) return;
+    console.log('✅ Audio 2 terminado');
+
+    const time2 = 8000;
+    const charTime2 = time2 / valeriaScript2.length;
+
+    for (let i = 0; i < valeriaScript2.length; i++) {
+      if (isDemoAborted.current) return;
+      setChatMessages([
+        { role: 'assistant', content: valeriaScript1, typing: false },
+        { role: 'assistant', content: valeriaScript2.substring(0, i + 1), typing: true }
+      ]);
+      await new Promise(r => setTimeout(r, charTime2));
+    }
+
+    if (isDemoAborted.current) return;
+    setChatMessages([
+      { role: 'assistant', content: valeriaScript1, typing: false },
+      { role: 'assistant', content: valeriaScript2, typing: false }
+    ]);
+
+    console.log("🎬 Activando UI Final... mobileView = 'final_deployed'");
+    setMobileView('final_deployed');
+    setDemoState('finished');
+  }, [valeriaScript1, valeriaScript2]);
+
+  useEffect(() => {
+    if (!demoStarted) return;
+
+    let isMounted = true;
+    setIsVideoExpanded(false);
+    setIsVideoFloating(false);
+    setGeneratedAsset(null);
+    setIsVideoReady(false);
+    setDisplayedText('');
+    setDemoStatus('idle');
+    setDemoState('idle');
+    setChatMessages([]);
+    setMobileView('idle');
+
+    runDemoChoreography();
+
+    return () => {
+      isMounted = false;
+      if (typingIntervalRef.current) {
+        clearInterval(typingIntervalRef.current);
+      }
+    };
+  }, [demoStarted, runDemoChoreography]);
+
+  useEffect(() => {
+    const locationState = (location as unknown as { state?: { campaignData?: any; isDemo?: boolean } }).state;
+    if (locationState?.campaignData) {
+      console.log('Campaign data received from VisualMatrix:', locationState.campaignData);
+      setChatStep(2);
+    }
+    setDemoStarted(false);
+  }, [location]);
+
+  const TikTokReelOverlay = () => (
+    <div className="absolute inset-0 pointer-events-none z-20 flex flex-col justify-between p-4 bg-gradient-to-b from-black/40 via-transparent to-black/60 pt-10">
+      <div className="flex justify-between items-start mt-2">
+        <span className="text-white font-bold text-lg drop-shadow-md">Para ti</span>
+        <div className="w-8 h-8 flex items-center justify-center bg-black/40 backdrop-blur rounded-full"><Sparkles size={16} className="text-white" /></div>
+      </div>
+      <div className="flex justify-between items-end mb-4">
+        <div className="flex flex-col gap-2 max-w-[70%]">
+          <div className="flex items-center gap-2">
+            <UserCircle2 size={24} className="text-white" />
+            <span className="text-white font-bold drop-shadow-md">@EtherAgent</span>
+          </div>
+          <p className="text-white text-sm drop-shadow-md line-clamp-2">Dominando el algoritmo. 🚀 #AI #Marketing</p>
+          <div className="flex items-center gap-1 bg-black/40 backdrop-blur w-fit px-2 py-1 rounded-full mt-1">
+             <span className="text-white text-xs">🎵 Sonido Original - EtherAgent</span>
+          </div>
+        </div>
+        <div className="flex flex-col items-center gap-5 pb-2">
+          <div className="flex flex-col items-center gap-1"><div className="w-10 h-10 bg-black/40 backdrop-blur rounded-full flex items-center justify-center"><Heart size={20} className="text-white" fill="white" /></div><span className="text-white text-xs drop-shadow-md">1.2M</span></div>
+          <div className="flex flex-col items-center gap-1"><div className="w-10 h-10 bg-black/40 backdrop-blur rounded-full flex items-center justify-center"><MessageCircle size={20} className="text-white" fill="white" /></div><span className="text-white text-xs drop-shadow-md">45K</span></div>
+          <div className="flex flex-col items-center gap-1"><div className="w-10 h-10 bg-black/40 backdrop-blur rounded-full flex items-center justify-center"><Bookmark size={20} className="text-white" fill="white" /></div><span className="text-white text-xs drop-shadow-md">8K</span></div>
+          <div className="flex flex-col items-center gap-1"><div className="w-10 h-10 bg-black/40 backdrop-blur rounded-full flex items-center justify-center"><Share2 size={20} className="text-white" fill="white" /></div><span className="text-white text-xs drop-shadow-md">11K</span></div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const InstagramStoryOverlay = () => (
+    <div className="absolute inset-0 pointer-events-none z-20 flex flex-col justify-between bg-gradient-to-b from-black/50 via-transparent to-black/50 pt-8 px-4 pb-6">
+      <div className="flex gap-1 mt-2 mb-4">
+        <div className="h-0.5 bg-white/40 flex-1 rounded-full overflow-hidden"><div className="h-full bg-white w-2/3" /></div>
+        <div className="h-0.5 bg-white/40 flex-1 rounded-full" />
+        <div className="h-0.5 bg-white/40 flex-1 rounded-full" />
+      </div>
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <UserCircle2 size={32} className="text-white" />
+          <span className="text-white font-bold text-sm drop-shadow-md">etheragent.ai <span className="text-white/70 font-normal ml-1">2h</span></span>
+        </div>
+        <MoreHorizontal size={20} className="text-white" />
+      </div>
+      <div className="mt-auto flex items-center gap-3">
+        <div className="flex-1 h-10 border border-white/50 rounded-full flex items-center px-4 backdrop-blur-sm">
+          <span className="text-white/80 text-sm">Enviar mensaje...</span>
+        </div>
+        <Heart size={24} className="text-white" />
+        <Send size={24} className="text-white" />
+      </div>
+    </div>
+  );
+
+  const InstagramPostOverlay = () => (
+    <div className="absolute inset-0 pointer-events-none z-20 flex flex-col justify-between pt-10">
+      <div className="h-14 flex items-center justify-between px-3 w-full z-30 relative shrink-0">
+         <div className="flex items-center gap-2">
+           <UserCircle2 size={30} className="text-white" />
+           <span className="text-white font-bold text-sm">etheragent.ai</span>
+         </div>
+         <MoreHorizontal size={20} className="text-white" />
+      </div>
+      
+      <div className="flex-1 w-full"></div>
+
+      <div className="px-3 py-4 flex flex-col gap-2 w-full z-30 relative shrink-0 pb-8 bg-gradient-to-t from-black/80 to-transparent">
+        <div className="flex justify-between items-center mb-1">
+          <div className="flex gap-4">
+             <Heart size={24} className="text-white" />
+             <MessageCircle size={24} className="text-white" />
+             <Send size={24} className="text-white" />
+          </div>
+          <Bookmark size={24} className="text-white" />
+        </div>
+        <span className="text-white font-bold text-sm">8,492 Me gusta</span>
+        <p className="text-white text-sm line-clamp-2"><span className="font-bold mr-2">etheragent.ai</span>Transformando el ecosistema B2B a velocidad luz.</p>
+        <span className="text-white/60 text-[10px] mt-1">HACE 2 HORAS</span>
+      </div>
+    </div>
+  );
+
+  const LinkedInBannerOverlay = () => (
+    <div className="absolute inset-0 pointer-events-none z-20 flex flex-col pt-10">
+       <div className="h-12 flex items-center px-4 shrink-0 bg-white/90 backdrop-blur">
+         <div className="w-6 h-6 bg-[#0a66c2] rounded text-white flex items-center justify-center font-bold text-xs">in</div>
+         <div className="ml-4 w-40 h-6 bg-zinc-200 rounded flex items-center px-2"><span className="text-zinc-400 text-xs">Buscar...</span></div>
+       </div>
+       
+       <div className="flex-1 p-3 flex flex-col pt-4 overflow-hidden">
+          <div className="w-full rounded-lg overflow-hidden flex flex-col border border-zinc-200 bg-white">
+            <div className="p-3 flex items-start gap-2">
+               <UserCircle2 size={36} className="text-zinc-400 shrink-0" />
+               <div className="flex flex-col">
+                 <span className="font-bold text-sm text-black leading-tight">EtherAgent Inc.</span>
+                 <span className="text-[10px] text-zinc-500 leading-tight">1.2M seguidores</span>
+                 <span className="text-[10px] text-zinc-400 flex items-center gap-1">Promocionado</span>
+               </div>
+            </div>
+            
+            <div className="w-full aspect-[16/9]"></div> 
+            
+            <div className="p-3 flex justify-between items-center border-t border-zinc-200">
+              <div className="flex flex-col">
+                 <span className="text-xs font-bold text-[#0a66c2] line-clamp-1">Descubre el futuro B2B</span>
+                 <span className="text-[10px] text-zinc-500">etheragent.com</span>
+              </div>
+            </div>
+            <div className="px-4 py-2 flex justify-between border-t border-zinc-200">
+               <span className="text-xs text-zinc-600 font-bold flex items-center gap-1"><Heart size={14} className="text-zinc-500" /> Recomendar</span>
+               <span className="text-xs text-zinc-600 font-bold flex items-center gap-1"><MessageCircle size={14} className="text-zinc-500" /> Comentar</span>
+            </div>
+          </div>
+       </div>
+    </div>
+  );
+
+  const renderUIOverlay = () => {
+    if (!currentAssetUrl) return null;
+    
+    if (mediaType === 'video') {
+      if (videoFormat === 'reel') return <TikTokReelOverlay />;
+      if (videoFormat === 'story') return <InstagramStoryOverlay />;
+      if (videoFormat === 'feed') return <InstagramPostOverlay />;
+    }
+    
+    if (mediaType === 'image') {
+      if (imageFormat === 'story') return <InstagramStoryOverlay />;
+      if (imageFormat === 'post') return <InstagramPostOverlay />;
+      if (imageFormat === 'banner') return <LinkedInBannerOverlay />;
+    }
+    
+    return null;
+  };
+
+  return (
+    <div className="flex flex-col xl:flex-row min-h-screen w-full bg-[#050505] text-white p-4 md:p-8 gap-8 pb-32 overflow-y-auto">
+      
+      {!demoStarted && (
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center">
+          <motion.button
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={() => setDemoStarted(true)}
+            className="bg-emerald-500 hover:bg-emerald-400 text-black font-black text-lg py-4 px-8 rounded-xl shadow-[0_0_40px_rgba(16,185,129,0.5)] flex items-center gap-3"
+          >
+            <Sparkles size={24} />
+            INICIAR DEMO
+          </motion.button>
+        </div>
+      )}
+      
+      <div className="flex-1 flex flex-col max-w-3xl">
+        <header className="flex items-center justify-between border-b border-white/10 pb-6 mb-6">
+          <div className="flex items-center gap-4">
+            <div className="relative w-14 h-14 rounded-full border-2 border-emerald-500/50 flex items-center justify-center bg-zinc-900">
+               <span className="font-black text-2xl text-white">V</span>
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold">Valeria M.</h2>
+              <p className="text-emerald-500 font-mono text-xs tracking-widest uppercase">Lead Growth Hacker • Active Session</p>
+            </div>
+          </div>
+        </header>
+
+        <div className="flex-1 bg-[#0a0a0c] border border-white/5 rounded-3xl p-8 flex flex-col relative shadow-2xl">
+          <div className="flex items-center gap-2 mb-8">
+            <Sparkles size={16} className="text-emerald-500" />
+            <span className="text-emerald-500 text-[10px] font-mono tracking-widest uppercase">Nodo: Viral Dynamics</span>
+          </div>
+
+          <AnimatePresence>
+            {chatMessages.map((msg, idx) => (
+              <motion.div 
+                key={idx}
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-zinc-900/50 border border-white/10 p-6 rounded-2xl rounded-tl-sm w-[90%] mb-6"
+              >
+                <p className="text-base text-zinc-300 leading-relaxed whitespace-pre-wrap">
+                  {msg.content}
+                  {msg.typing && <span className="inline-block w-2 h-4 bg-emerald-500 ml-1 animate-pulse" />}
+                </p>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+
+          {demoState === 'finished' && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-emerald-900/20 border border-emerald-500/20 p-6 rounded-2xl rounded-tr-sm w-[85%] self-end mb-6">
+              <p className="text-base text-emerald-100 leading-relaxed">
+                Perfecto. La campaña está lista para desplegar.
+              </p>
+            </motion.div>
+          )}
+
+          {!demoStarted && (
+            <>
+              <div className="bg-zinc-900/50 border border-white/10 p-6 rounded-2xl rounded-tl-sm w-[90%] mb-6">
+                <p className="text-base text-zinc-300 leading-relaxed">
+                  He procesado los vectores sociales. El asset está formateado con la UI nativa de la red seleccionada para maximizar la fricción viral.
+                </p>
+              </div>
+
+              <div className="bg-emerald-900/20 border border-emerald-500/20 p-6 rounded-2xl rounded-tr-sm w-[85%] self-end mb-6">
+                <p className="text-base text-emerald-100 leading-relaxed">
+                  Procede, Valeria. Verifica la telemetría visual.
+                </p>
+              </div>
+            </>
+          )}
+
+          <div className="mt-auto grid grid-cols-2 gap-4">
+            <button onClick={handleCompile} disabled={isCompiling || chatStep === 2} className="bg-[#111] hover:bg-zinc-800 border border-white/5 p-4 rounded-xl flex items-center justify-center gap-3 text-sm font-bold text-zinc-300 transition-colors">
+              {isCompiling ? <Loader2 size={18} className="text-emerald-500 animate-spin" /> : <Zap size={18} className="text-emerald-500" />} Compilar Assets
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="w-full xl:w-[420px] shrink-0 flex flex-col items-center pt-2">
+        
+        <div className="w-[340px] flex p-1 bg-[#111] rounded-xl border border-white/10 mb-4">
+          <button onClick={() => setMediaType('video')} className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${mediaType === 'video' ? 'bg-emerald-500/20 text-emerald-500 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>
+            <Video size={14} /> VIDEO VECTORS
+          </button>
+          <button onClick={() => setMediaType('image')} className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${mediaType === 'image' ? 'bg-emerald-500/20 text-emerald-500 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>
+            <ImageIcon size={14} /> STATIC VECTORS
+          </button>
+        </div>
+
+        <div className="w-[340px] flex justify-between items-center mb-6">
+          <div className="flex gap-2">
+            {mediaType === 'video' ? (
+              <>
+                <button onClick={() => setVideoFormat('reel')} className={`px-3 py-1.5 rounded-md text-[10px] font-mono uppercase transition-colors ${videoFormat === 'reel' ? 'bg-emerald-500 text-black font-bold' : 'bg-[#111] text-zinc-500 border border-white/5 hover:bg-zinc-800'}`}>Reel</button>
+                <button onClick={() => setVideoFormat('feed')} className={`px-3 py-1.5 rounded-md text-[10px] font-mono uppercase transition-colors ${videoFormat === 'feed' ? 'bg-emerald-500 text-black font-bold' : 'bg-[#111] text-zinc-500 border border-white/5 hover:bg-zinc-800'}`}>Feed</button>
+                <button onClick={() => setVideoFormat('story')} className={`px-3 py-1.5 rounded-md text-[10px] font-mono uppercase transition-colors ${videoFormat === 'story' ? 'bg-emerald-500 text-black font-bold' : 'bg-[#111] text-zinc-500 border border-white/5 hover:bg-zinc-800'}`}>Story</button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => setImageFormat('post')} className={`px-3 py-1.5 rounded-md text-[10px] font-mono uppercase transition-colors ${imageFormat === 'post' ? 'bg-emerald-500 text-black font-bold' : 'bg-[#111] text-zinc-500 border border-white/5 hover:bg-zinc-800'}`}>Post</button>
+                <button onClick={() => setImageFormat('story')} className={`px-3 py-1.5 rounded-md text-[10px] font-mono uppercase transition-colors ${imageFormat === 'story' ? 'bg-emerald-500 text-black font-bold' : 'bg-[#111] text-zinc-500 border border-white/5 hover:bg-zinc-800'}`}>Story</button>
+                <button onClick={() => setImageFormat('banner')} className={`px-3 py-1.5 rounded-md text-[10px] font-mono uppercase transition-colors ${imageFormat === 'banner' ? 'bg-emerald-500 text-black font-bold' : 'bg-[#111] text-zinc-500 border border-white/5 hover:bg-zinc-800'}`}>Banner</button>
+              </>
+            )}
+          </div>
+          
+          <div className="relative">
+            <input 
+              type="file" 
+              accept="video/mp4,video/quicktime" 
+              onChange={handleFileUpload} 
+              disabled={uploading} 
+              className="hidden" 
+              ref={fileInputRef}
+            />
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="w-8 h-8 rounded-full border border-emerald-500/30 flex items-center justify-center text-emerald-500 hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
+            >
+              {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+            </button>
+          </div>
+        </div>
+
+        {demoState !== 'idle' && demoState !== 'finished' && (
+          <button 
+            onClick={handleSkipDemo}
+            className="fixed top-6 right-6 z-[9999] px-6 py-3 bg-red-600/90 backdrop-blur-xl border-2 border-red-400 rounded-full text-sm font-bold text-white shadow-[0_0_25px_rgba(220,38,38,0.5)] hover:scale-110 hover:bg-red-500 transition-all flex items-center gap-2 cursor-pointer animate-pulse"
+            style={{ zIndex: 99999 }}
+          >
+            ⏭ SALTAR DEMO
+          </button>
+        )}
+
+        <div className="relative w-[340px] h-[720px] bg-black border-[8px] border-[#1c1c1e] rounded-[3.5rem] shadow-[0_0_50px_rgba(16,185,129,0.15)] overflow-hidden flex flex-col shrink-0">
+          
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-24 h-7 bg-black rounded-full z-50"></div>
+
+          <AnimatePresence>
+            {isVideoExpanded && generatedAsset && isVideoFloating && (
+              <motion.div
+                initial={{ opacity: 0, x: 100, scale: 0.8, rotate: 5 }}
+                animate={{ opacity: 1, x: 40, scale: 1, rotate: 0 }}
+                exit={{ opacity: 0, x: -100, scale: 0.5, filter: "blur(10px)" }}
+                transition={{ type: "spring", damping: 20, stiffness: 100 }}
+                className="absolute z-[200] w-72 h-72 md:w-96 md:h-96 rounded-xl overflow-hidden border border-emerald-500/50 shadow-[0_0_50px_rgba(16,185,129,0.3)] bg-black flex flex-col"
+              >
+                <div className="h-8 bg-zinc-900 border-b border-white/10 flex items-center px-3 gap-2 shrink-0">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-500"></div>
+                  <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
+                  <span className="text-[10px] font-mono text-zinc-500 ml-2">Render_Engine_v3.mp4</span>
+                </div>
+                <video 
+                  src={generatedAsset.url} 
+                  autoPlay muted loop playsInline 
+                  className="w-full h-full object-cover opacity-90" 
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div 
+            className={`relative transition-all duration-1000 ease-in-out ${
+              isVideoFloating 
+                ? 'opacity-0 scale-75 translate-y-20 blur-md pointer-events-none' 
+                : 'opacity-100 scale-100 translate-y-0 blur-0'
+            }`}
+          >
+            <AnimatePresence mode="wait">
+              {mobileView === 'rendering' ? (
+                  <motion.div 
+                    key="view-rendering"
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-zinc-950 z-10"
+                  >
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full animate-pulse"></div>
+                      <Loader2 className="w-12 h-12 text-emerald-400 animate-spin relative z-10" />
+                    </div>
+                    <p className="mt-6 text-emerald-400/80 font-mono text-xs tracking-[0.3em] uppercase animate-pulse">
+                      Procesando Neural
+                    </p>
+                  </motion.div>
+                ) : mobileView === 'final_deployed' ? (
+                  <motion.div 
+                    key="view-final"
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }}
+                    className="absolute inset-0 w-full h-full bg-black overflow-hidden rounded-[2rem] sm:rounded-[3rem]"
+                    style={{ minHeight: '100%' }}
+                  >
+                    <video 
+                      key={realVideoUrl || 'video-final'} 
+                      src={realVideoUrl || CAMPAIGN_ZERO_DATA?.finalAsset?.videoUrl || "https://cdn.pixabay.com/video/2021/09/01/87035-594833246_tiny.mp4"} 
+                      autoPlay 
+                      loop 
+                      muted 
+                      playsInline
+                      className="absolute top-0 left-0 w-full h-full object-cover z-10"
+                      style={{ opacity: 1, display: 'block' }}
+                      onError={(e) => console.error("❌ Error de carga en tag video:", e.currentTarget.src)}
+                      onLoadedData={() => console.log("✅ Video cargado y reproduciéndose en UI")}
+                      onCanPlay={() => console.log("🎬 Video canPlay - URL:", realVideoUrl)}
+                    />
+
+                    <div className="absolute top-0 left-0 w-full h-full bg-black/20 z-20 pointer-events-none"></div>
+
+                    <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+                      <div className="relative">
+                        <div className="absolute inset-0 rounded-full bg-emerald-500/50 animate-ping"></div>
+                        <div className="relative w-20 h-20 flex items-center justify-center rounded-full bg-white/20 backdrop-blur-xl border border-white/40 text-white shadow-2xl">
+                          <Play fill="currentColor" className="w-8 h-8 ml-1" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="absolute top-8 left-0 w-full flex justify-center z-40 pointer-events-none">
+                      <span className="px-4 py-2 bg-emerald-500/20 backdrop-blur-md border border-emerald-400 rounded-full text-xs text-emerald-300 font-bold uppercase tracking-widest">
+                        Asset Desplegado
+                      </span>
+                    </div>
+    
+                    <div className="absolute bottom-0 left-0 w-full p-4 flex flex-col justify-end space-y-2 z-40 pb-8 bg-gradient-to-t from-black/90 to-transparent">
+                      <motion.div 
+                        initial={{ y: 20, opacity: 0 }} 
+                        animate={{ y: 0, opacity: 1 }} 
+                        transition={{ delay: 1 }}
+                        className="flex items-center gap-2 mb-2"
+                      >
+                        <TrendingUp className="w-4 h-4 text-emerald-400" />
+                        <span className="text-white text-xs font-bold uppercase tracking-wider">Campaña Activa</span>
+                      </motion.div>
+
+                      <motion.div 
+                        initial={{ y: 30, opacity: 0 }} 
+                        animate={{ y: 0, opacity: 1 }} 
+                        transition={{ delay: 1.1 }}
+                        className="bg-black/60 backdrop-blur-md border border-zinc-800/50 p-3 rounded-xl flex justify-between items-center w-full"
+                      >
+                        <span className="text-white font-medium text-xs">TikTok</span>
+                        <div className="flex items-center gap-3 text-[10px] text-zinc-300">
+                          <span className="flex items-center gap-1"><Eye className="w-3 h-3 text-cyan-400"/> 12.4K</span>
+                        </div>
+                      </motion.div>
+
+                      <motion.div 
+                        initial={{ y: 30, opacity: 0 }} 
+                        animate={{ y: 0, opacity: 1 }} 
+                        transition={{ delay: 1.3 }}
+                        className="bg-black/60 backdrop-blur-md border border-zinc-800/50 p-3 rounded-xl flex justify-between items-center w-full"
+                      >
+                        <span className="text-white font-medium text-xs">IG Reels</span>
+                        <div className="flex items-center gap-3 text-[10px] text-zinc-300">
+                          <span className="flex items-center gap-1"><Eye className="w-3 h-3 text-pink-500"/> 8.9K</span>
+                        </div>
+                      </motion.div>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div 
+                    key="view-idle"
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                    className="absolute inset-0 flex items-center justify-center bg-zinc-950"
+                  >
+                    {loading ? (
+                      <Loader2 className="animate-spin text-emerald-500" size={40} />
+                    ) : currentAssetUrl ? (
+                      <img src={currentAssetUrl} alt="Social Asset" className="absolute inset-0 w-full h-full object-contain bg-black" />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-zinc-600 font-mono text-[10px] uppercase text-center p-8 z-10 border border-dashed border-zinc-800 m-4 rounded-xl gap-2 w-3/4">
+                        <Film size={24} className="text-zinc-700 mb-2" />
+                        <span>Sin {mediaType} para formato {mediaType === 'video' ? videoFormat : imageFormat}</span>
+                        <span className="text-emerald-500/50">Haz clic en la nube para subir</span>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+
+        <button className={`mt-8 w-[340px] py-4 rounded-xl font-black font-mono text-sm tracking-widest transition-all duration-300 ${chatStep === 2 ? 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-[0_0_30px_rgba(16,185,129,0.3)]' : 'bg-zinc-900 text-zinc-600 border border-white/5 cursor-not-allowed'}`}>
+          [ DEPLOY TO NETWORKS ]
+        </button>
+      </div>
+    </div>
+  );
+}

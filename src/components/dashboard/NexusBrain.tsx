@@ -78,7 +78,7 @@ const VideoPlayerSimulator = ({ asset, isPlaying, progress }: { asset: Asset, is
 
       {/* Visual content simulator */}
       <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-zinc-800 to-black">
-        <div className="absolute inset-0 opacity-40 mix-blend-overlay bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
+        <div className="absolute inset-0 opacity-40 mix-blend-overlay bg-[url('/noise.svg')]" />
         
         <div className="relative z-10 flex flex-col items-center gap-4 p-8 text-center">
           <Clapperboard className="w-12 h-12 text-indigo-400 opacity-50 mb-4" />

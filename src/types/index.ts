@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export type ViewId = 'home' | 'nexus' | 'spaces' | 'engine' | 'influencers' | 'broadcaster' | 'templates' | 'telemetry' | 'pricing' | 'deployment' | 'exchange' | 'social' | 'sonic' | 'commercial';
+export type ViewId = 'home' | 'nexus' | 'spaces' | 'engine' | 'influencers' | 'broadcaster' | 'templates' | 'telemetry' | 'pricing' | 'deployment' | 'exchange' | 'social' | 'sonic' | 'commercial' | 'community' | 'publisher';
 
 export interface Avatar {
   id: string;

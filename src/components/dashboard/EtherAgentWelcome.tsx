@@ -53,28 +53,28 @@ const LAB_MODULES = [
         lab: "Nexus",
         icon: Terminal,
         color: "emerald",
-        route: "/nexus"
+        route: "/dashboard/nexus"
     },
     {
         title: "Generar bumper viral para TikTok",
         lab: "Social Lab",
         icon: Smartphone,
         color: "emerald",
-        route: "/social"
+        route: "/dashboard/social"
     },
     {
         title: "Desplegar valla 8K en Metaverso",
         lab: "Virtual OOH",
         icon: MonitorPlay,
         color: "amber",
-        route: "/ooh"
+        route: "/dashboard/ooh"
     },
     {
         title: "Crear cuña radial sintética",
         lab: "Sonic Lab",
         icon: Headphones,
         color: "orange",
-        route: "/sonic"
+        route: "/dashboard/sonic"
     },
     {
         title: "Inyectar presupuesto en Meta Ads",
@@ -162,14 +162,14 @@ export default function EtherAgentWelcome({ isDemoMode = false }: WelcomeProps) 
         // Comandos locales "Hard-coded" de navegación
         const lowerText = textToProcess.toLowerCase();
         let isLocalCommand = false;
-        let targetRoute = '/nexus';
+        let targetRoute = '/dashboard/nexus';
 
-        if (lowerText.includes('meta ads') || lowerText.includes('performance') || lowerText.includes('presupuesto')) { targetRoute = '/ads'; isLocalCommand = true; }
-        else if (lowerText.includes('tiktok') || lowerText.includes('social') || lowerText.includes('bumper')) { targetRoute = '/social'; isLocalCommand = true; }
-        else if (lowerText.includes('radio') || lowerText.includes('spotify') || lowerText.includes('cuña')) { targetRoute = '/sonic'; isLocalCommand = true; }
-        else if (lowerText.includes('valla') || lowerText.includes('metaverso') || lowerText.includes('ooh')) { targetRoute = '/ooh'; isLocalCommand = true; }
-        else if (lowerText.includes('comercial') || lowerText.includes('cinemático') || lowerText.includes('render')) { targetRoute = '/commercial-matrix'; isLocalCommand = true; }
-        else if (lowerText.includes('replay') || lowerText.includes('orquestación') || lowerText.includes('agentes')) { targetRoute = '/replay'; isLocalCommand = true; }
+        if (lowerText.includes('meta ads') || lowerText.includes('performance') || lowerText.includes('presupuesto')) { targetRoute = '/dashboard/ads'; isLocalCommand = true; }
+        else if (lowerText.includes('tiktok') || lowerText.includes('social') || lowerText.includes('bumper')) { targetRoute = '/dashboard/social'; isLocalCommand = true; }
+        else if (lowerText.includes('radio') || lowerText.includes('spotify') || lowerText.includes('cuña')) { targetRoute = '/dashboard/sonic'; isLocalCommand = true; }
+        else if (lowerText.includes('valla') || lowerText.includes('metaverso') || lowerText.includes('ooh')) { targetRoute = '/dashboard/ooh'; isLocalCommand = true; }
+        else if (lowerText.includes('comercial') || lowerText.includes('cinemático') || lowerText.includes('render')) { targetRoute = '/dashboard/commercial-matrix'; isLocalCommand = true; }
+        else if (lowerText.includes('replay') || lowerText.includes('orquestación') || lowerText.includes('agentes')) { targetRoute = '/dashboard/replay'; isLocalCommand = true; }
 
         if (isLocalCommand) {
             setIsProcessing(true);

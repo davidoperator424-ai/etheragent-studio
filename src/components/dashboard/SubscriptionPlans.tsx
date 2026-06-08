@@ -5,7 +5,7 @@ import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import { supabase } from '@/lib/supabaseClient';
 
 const initialOptions = {
-    clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID || "test",
+    clientId: (import.meta.env.VITE_PAYPAL_CLIENT_ID || "test").trim(),
     currency: "USD",
     intent: "capture",
 };

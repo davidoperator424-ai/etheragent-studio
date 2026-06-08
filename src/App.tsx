@@ -10,7 +10,6 @@ import { AnimatePresence } from 'framer-motion';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { VoiceProvider } from '@/context/GlobalVoiceContext';
-import OmniAgentOrb from '@/components/layout/OmniAgentOrb';
 
 const Index = lazy(() => import('./pages/Index'));
 const Landing = lazy(() => import('./pages/Landing'));
@@ -48,7 +47,6 @@ const App = () => (
                   </Routes>
                 </AnimatePresence>
               </Suspense>
-              <OmniAgentOrb />
             </VoiceProvider>
           </AuthProvider>
         </TooltipProvider>

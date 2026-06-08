@@ -144,7 +144,7 @@ const DashboardLayout = ({ children, location }: { children: React.ReactNode; lo
       <div className="absolute inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-600/20 blur-[120px] rounded-full mix-blend-screen animate-pulse" />
         <div className="absolute bottom-[20%] right-[-5%] w-[30%] h-[50%] bg-cyan-600/10 blur-[120px] rounded-full mix-blend-screen" />
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay" />
+        <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-20 mix-blend-overlay" />
       </div>
 
       {!isMobile && <DesktopSidebar pathname={location} />}
