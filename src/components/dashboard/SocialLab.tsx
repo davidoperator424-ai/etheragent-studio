@@ -150,7 +150,8 @@ export default function SocialLab() {
     if (savedCampaign) {
       try {
         const parsed = JSON.parse(savedCampaign);
-        const socialScene = parsed.escenas.find((e: any) => e.tipo === 'social');
+        const escenas = parsed.metrics?.escenas || [];
+        const socialScene = escenas.find((e: any) => e.tipo === 'social');
         if (socialScene) {
           setCampaignAsset(socialScene);
           setMobileView('final_deployed');

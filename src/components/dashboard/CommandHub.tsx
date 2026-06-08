@@ -35,7 +35,7 @@ const AGENTS: Record<string, AgentStatus> = {
     id: 'marcus',
     name: 'Marcus V.',
     role: 'Director de Estrategia',
-    avatar: 'https://njhifpbnrbbhbmwgedtz.supabase.co/storage/v1/object/public/visual-assets/marcus_avatar.jpg',
+    avatar: 'https://njhifpbnrbbhbmwgedtz.supabase.co/storage/v1/object/public/visual-assets/marcus_static_linkedin-1773153064862.jpg',
     message: 'Datos ingeridos. Calculando vectores de conversión y tono de marca...',
     state: 'processing'
   }
