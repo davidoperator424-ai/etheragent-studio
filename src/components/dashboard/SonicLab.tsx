@@ -99,7 +99,7 @@ export default function SonicLab() {
 
           <div className="w-full mt-auto px-6">
             <div className="h-1 bg-zinc-800 rounded-full mb-6 overflow-hidden">
-              <div className={`h-full bg-emerald-500 transition-all duration-[30s] ${isPlaying ? 'w-full' : 'w-0'}`} />
+              <div className={`h-full bg-emerald-500 transition-all ${isPlaying ? 'w-full' : 'w-0'}`} style={{ transitionDuration: '30s' }} />
             </div>
             <div className="flex justify-center mb-6">
               <button
