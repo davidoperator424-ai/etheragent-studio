@@ -132,7 +132,7 @@ export default function NexusDashboard({ isDemoMode = false }: NexusDashboardPro
               </div>
               <div className="flex flex-col items-center gap-2">
                 <p className="font-mono text-sm tracking-widest uppercase text-white">Sintetizando ADN de {url}...</p>
-                <p className="font-mono text-[10px] text-zinc-500">Gemini Engine processando directrices para Valeria y Viktor.</p>
+                <p className="font-mono text-[10px] text-zinc-500">Gemini Engine procesando directrices de campaña.</p>
               </div>
             </div>
           ) : isScanning ? (

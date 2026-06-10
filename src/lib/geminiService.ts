@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { useTokenStore } from "@/store/useTokenStore";
+import { generateCampaign } from "./groqService";
 
 export interface CampaignWorkspace {
     mission_id: string;
@@ -15,21 +16,13 @@ export async function generateWorkspaceCampaign(brandOrUrl: string): Promise<Cam
     const GEMINI_API_KEY = tokens.gemini || import.meta.env.VITE_GEMINI_API_KEY;
 
     if (!GEMINI_API_KEY) {
-        console.warn("⚠️ GEMINI_API_KEY no encontrada. Configúrala en el Token Manager.");
-        // Retornamos un Mock para que la app no se rompa mientras pones la llave
-        return {
-            mission_id: "CMP-884",
-            hook: "He detectado la esencia de la marca. El algoritmo predictivo indica que este gancho generará una retención del 87%.",
-            narrative_body: "He procesado la gráfica de Autoridad. El copy ataca el dolor de las agencias. El A/B test marca un CPA un 40% más bajo.",
-            on_screen_text: ["STOP SCROLLING", "ROI x10", "LINK IN BIO"],
-            call_to_action: "Solicita tu Demo",
-            visual_description: "Cinematic, high-end corporate cyberpunk, glowing neon, hyper-realistic, 8k resolution --ar 16:9"
-        };
+        const groqResult = await generateCampaign(brandOrUrl, "Analiza esta URL y genera una campaña B2B");
+        if (groqResult) return groqResult;
+        return null;
     }
 
     try {
         const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-        // Usamos gemini-2.0-flash para máximo rendimiento y latencia mínima
         const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
         const prompt = `Eres el Director Creativo Supremo de EtherAgent OS. 
