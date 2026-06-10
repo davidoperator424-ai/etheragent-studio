@@ -50,7 +50,7 @@ export async function generateWorkspaceCampaign(brandOrUrl: string): Promise<Cam
         const responseText = result.response.text();
 
         // Limpiamos el texto por si Gemini devuelve markdown (\`\`\`json ...)
-        const cleanedText = responseText.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
+        const cleanedText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
 
         return JSON.parse(cleanedText) as CampaignWorkspace;
 

@@ -33,7 +33,7 @@ export default function Landing() {
       }
     };
     fetchLandingAssets();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const text = "> Ejecutando protocolo 'NeuroBoost'.\n> Target: $1.2M MRR.\n> Compilando vectores de campaña...\n> Transfiriendo a Social Lab.";
