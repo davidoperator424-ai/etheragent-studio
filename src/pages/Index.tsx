@@ -8,6 +8,7 @@ import type { ViewId, Avatar } from '@/types';
 import { API_STATUS } from '@/services/api';
 import SpatialSidebar from '@/components/layout/SpatialSidebar';
 import MobileTabBar from '@/components/layout/MobileTabBar';
+import AITokenManager from '@/components/AITokenManager';
 
 interface WindowWithGtag extends Window {
   gtag?: (...args: unknown[]) => void;
@@ -28,7 +29,6 @@ const NexusDashboard = lazy(() => import('@/components/dashboard/NexusDashboard'
 const SocialLab = lazy(() => import('@/components/dashboard/SocialLab'));
 const VirtualOOHLab = lazy(() => import('@/components/dashboard/VirtualOOHLab'));
 const PerformanceAdsLab = lazy(() => import('@/components/dashboard/PerformanceAdsLab'));
-const NeuralAudioMatrix = lazy(() => import('@/components/dashboard/NeuralAudioMatrix'));
 const VisualAssetMatrix = lazy(() => import('@/components/dashboard/VisualAssetMatrix'));
 const SonicLab = lazy(() => import('@/components/dashboard/SonicLab'));
 const StudioLab = lazy(() => import('@/components/dashboard/StudioLab'));
@@ -39,7 +39,6 @@ const CommunityLab = lazy(() => import('@/components/dashboard/CommunityLab'));
 const NexusBrain = lazy(() => import('@/components/dashboard/NexusBrain'));
 const OmniPublisher = lazy(() => import('@/components/dashboard/publisher/OmniPublisher'));
 
-const CommandHub = lazy(() => import('@/components/dashboard/CommandHub'));
 const EtherAgentWelcome = lazy(() => import('@/components/dashboard/EtherAgentWelcome'));
 
 const STORAGE_KEY = 'etheragent_navigation';
@@ -140,6 +139,7 @@ const DashboardLayout = ({ children, location }: { children: React.ReactNode; lo
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen w-full bg-black text-white font-sans overflow-hidden">
+      <AITokenManager />
       {/* FONDO ESPACIAL GLOBAL */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-600/20 blur-[120px] rounded-full mix-blend-screen animate-pulse" />
@@ -171,7 +171,7 @@ const AdminRouteGuard = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
   
   if (user?.email !== ADMIN_EMAIL) {
-    return <Navigate to="/dashboard/hub" replace />;
+    return <Navigate to="/dashboard/nexus-brain" replace />;
   }
   
   return <>{children}</>;
@@ -217,7 +217,7 @@ export default function Index() {
     <DashboardLayout location={location.pathname}>
       <Routes>
         <Route path="/" element={<ProtectedRoute><EtherAgentWelcome /></ProtectedRoute>} />
-        <Route path="hub" element={<CommandHub />} />
+        <Route path="hub" element={<Navigate to="/dashboard/nexus-brain" replace />} />
         <Route path="nexus" element={<ProtectedRoute><NexusDashboard /></ProtectedRoute>} />
         <Route path="social" element={<ProtectedRoute><SocialLab /></ProtectedRoute>} />
         <Route path="ooh" element={<ProtectedRoute><VirtualOOHLab /></ProtectedRoute>} />
@@ -232,7 +232,6 @@ export default function Index() {
         <Route path="pricing" element={<ProtectedRoute><PricingPlans /></ProtectedRoute>} />
         <Route path="deployment" element={<ProtectedRoute><DeploymentSequence /></ProtectedRoute>} />
         <Route path="exchange" element={<ProtectedRoute><GlobalExchange /></ProtectedRoute>} />
-        <Route path="audio-matrix" element={<ProtectedRoute><AdminRouteGuard><NeuralAudioMatrix /></AdminRouteGuard></ProtectedRoute>} />
         <Route path="visual-matrix" element={<ProtectedRoute><AdminRouteGuard><VisualAssetMatrix /></AdminRouteGuard></ProtectedRoute>} />
         <Route path="sonic" element={<ProtectedRoute><SonicLab /></ProtectedRoute>} />
         <Route path="studio-lab" element={<ProtectedRoute><StudioLab /></ProtectedRoute>} />

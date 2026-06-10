@@ -20,7 +20,7 @@ export default function NexusDashboard({ isDemoMode = false }: NexusDashboardPro
   const ceoCommand = useCampaignStore((state) => state.ceoCommand);
 
   useEffect(() => {
-    // Check if we came from CommandHub with the intention to create a workspace
+    // Check if we came from Nexus Brain with the intention to create a workspace
     const state = location.state as { mode?: string; query?: string; autoStart?: boolean } | null;
 
     if (state?.mode === 'create_workspace' && state?.query) {

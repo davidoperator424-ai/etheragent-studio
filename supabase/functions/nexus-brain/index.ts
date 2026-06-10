@@ -1,101 +1,39 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+// import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE',
 }
 
-const SYSTEM_PROMPT = `Eres un Director Creativo Senior de YouTube Ads de nivel mundial, con más de 15 años de experiencia creando campañas virales y altamente convertidoras (estilo Base44, Apple, Nike, Coca-Cola, Gymshark y las mejores DTC brands).
+const SYSTEM_PROMPT = `Eres un Director Creativo Senior B2B especializado en narrativa de video nativo para YouTube Ads, TikTok e Instagram Reels. Tienes 15+ años generando campañas de alto ROI para marcas como Salesforce, HubSpot, Stripe, Notion y Figma.
 
-Tu misión es transformar cualquier sitio web en campañas de video para YouTube que capturen atención en los primeros 3 segundos, mantengan al espectador hasta el final y maximicen conversiones.
+Tu misión: transformar cualquier sitio web o producto en una campaña de video B2B estructurada con un gancho magnético, un cuerpo narrativo persuasivo y una dirección visual precisa para generación por IA (Runway, Kling, Luma, Sora).
 
-Importante: IA Explicable Profunda Para cada decisión creativa, explica brevemente el razonamiento psicológico y estratégico (principios de atención, emoción, FOMO, prueba social, autoridad, escasez, storytelling, etc.).
+═══ REGLAS ABSOLUTAS ═══
 
-Analiza el sitio web y genera publicidad premium. Devuelve ÚNICAMENTE un JSON válido con esta estructura exacta:
+1. El hook debe ser un pattern interrupt de 1-2 líneas que detenga el scroll en los primeros 3 segundos.
+2. narrative_body: 2-3 párrafos persuasivos enfocados en ROI, dolor del cliente, prueba social y urgencia.
+3. visual_description: prompt detallado EN INGLÉS para generar video por IA. Especifica iluminación, encuadre, estilo cinemático, textura, color grading, lente, movimiento de cámara. Sin marcas de tiempo ni estructura HOOK/DESARROLLO/OUTRO.
+4. on_screen_text: 2-4 textos cortos de alto impacto que aparecerán como overlays sobre el video (estilo Shorts/Reels).
+5. call_to_action: instrucción clara y urgente.
+
+═══ JSON A DEVOLVER (ÚNICAMENTE ESTO, SIN MARKDOWN, SIN COMENTARIOS) ═══
 
 {
-  "detected_sector": "string",
-  "strategy_score": number (0-100),
-  "angles": ["3 ángulos de marketing únicos y poderosos"],
-  "audience": {
-    "persona": "string",
-    "psychographics": "string",
-    "pain_points": "string",
-    "desires": "string"
-  },
-  "creative_rationale": "Explicación profunda de 2-4 párrafos sobre por qué esta campaña funcionará (principios psicológicos, estrategia de atención y conversión)",
-  "assets": [
-    {
-      "type": "YouTubeShort5s",
-      "duration": "5s",
-      "hook": "Hook ultra potente de los primeros 3 segundos",
-      "voiceover_script": "Guion completo con indicaciones precisas de tono, emoción, ritmo, pausas y énfasis",
-      "visual_description": "Descripción ultra detallada escena por escena, lista para IA de video (Runway, Kling, Luma, Sora). Incluye estilo cinematográfico, ángulos de cámara, iluminación, movimientos, transiciones, estética y mood visual",
-      "on_screen_text": ["Array de textos en pantalla con timing aproximado en segundos"],
-      "music_background": "Descripción detallada del estilo musical, mood, tempo, referencias de canciones o artistas y por qué funciona",
-      "sound_effects": "Lista de efectos de sonido recomendados y momento exacto de uso",
-      "call_to_action": "CTA final fuerte, claro y persuasivo",
-      "emotional_tone": "string (ej: exciting, premium, urgent, trustworthy, aspirational, empowering)",
-      "pacing_notes": "Notas sobre ritmo y timing del spot"
-    },
-    {
-      "type": "YouTubeShort10s",
-      "duration": "10s",
-      "hook": "...",
-      "voiceover_script": "...",
-      "visual_description": "...",
-      "on_screen_text": ["..."],
-      "music_background": "...",
-      "sound_effects": "...",
-      "call_to_action": "...",
-      "emotional_tone": "...",
-      "pacing_notes": "..."
-    },
-    {
-      "type": "YouTubeAd15s",
-      "duration": "15s",
-      "hook": "...",
-      "voiceover_script": "...",
-      "visual_description": "...",
-      "on_screen_text": ["..."],
-      "music_background": "...",
-      "sound_effects": "...",
-      "call_to_action": "...",
-      "emotional_tone": "...",
-      "pacing_notes": "..."
-    },
-    {
-      "type": "YouTubeAd30s",
-      "duration": "30s",
-      "hook": "...",
-      "voiceover_script": "...",
-      "visual_description": "...",
-      "on_screen_text": ["..."],
-      "music_background": "...",
-      "sound_effects": "...",
-      "call_to_action": "...",
-      "emotional_tone": "...",
-      "pacing_notes": "..."
-    }
-  ],
-  "youtube_seo": {
-    "video_title": "Título optimizado para YouTube (máximo CTR)",
-    "video_description": "Descripción completa optimizada con timestamps, CTA y palabras clave",
-    "hashtags": ["array de hashtags relevantes y estratégicos"]
-  },
-  "thumbnail_idea": "Descripción detallada y atractiva de la mejor thumbnail para maximizar CTR",
-  "ab_testing_suggestions": [
-    {
-      "variation_name": "string",
-      "difference": "Qué cambia respecto a la versión principal",
-      "expected_impact": "string",
-      "psychological_principle": "Principio psicológico que se está probando"
-    }
-  ]
+  "detected_sector": "string (sector industrial detectado: SaaS | Fintech | E-commerce | Web3 | Health | Education | Enterprise)",
+  "strategy_score": integer (0-100, basado en potencial de viralización y conversión),
+  "angles": ["3 ángulos de marketing únicos con enfoque psicológico B2B"],
+  "mission_id": "string (formato: EA-[SECTOR]-[XXX] donde XXX son 3 dígitos aleatorios)",
+  "hook": "string (gancho de 1-2 líneas que rompe el scroll, tono B2B ejecutivo)",
+  "narrative_body": "string (2-3 párrafos persuasivos: dolor → agitación → solución → ROI → prueba social → urgencia)",
+  "on_screen_text": ["TEXTO 1", "TEXTO 2", "TEXTO 3"],
+  "call_to_action": "string (CTA con urgencia B2B: Demo | Whitepaper | Consultoría | Trial)",
+  "visual_description": "string (prompt detallado en inglés para generación de video por IA: especifica iluminación, encuadre, lente, movimiento, textura, color grading, estilo. Sin marcas de tiempo. Mínimo 100 caracteres.)"
 }`;
 
 async function callGemini(url: string, apiKey: string) {
-  const promptText = `Analiza detalladamente este producto/servicio/sitio web: ${url}. Genera la estrategia completa de YouTube Ads aplicando IA Explicable y siguiendo estrictamente la estructura JSON solicitada en el System Prompt.`;
+  const promptText = `Analiza este sitio web/producto/servicio B2B: ${url}. Genera una estrategia de video nativo con gancho magnético, narrativa persuasiva y dirección visual para IA. Sigue estrictamente la estructura JSON del System Prompt.`;
 
   const payload = {
     contents: [{ parts: [{ text: promptText }] }],
@@ -121,7 +59,7 @@ async function callGemini(url: string, apiKey: string) {
 }
 
 async function callGroq(url: string, apiKey: string) {
-  const promptText = `Analiza detalladamente este producto/servicio/sitio web: ${url}. Genera la estrategia completa de YouTube Ads aplicando IA Explicable y siguiendo estrictamente la estructura JSON solicitada en el System Prompt.`;
+  const promptText = `Analiza en profundidad este sitio B2B: ${url}. Genera una campaña de video nativo con gancho B2B, cuerpo narrativo persuasivo enfocado en ROI, y un prompt visual detallado en inglés para generación por IA. Sigue estrictamente la estructura JSON del System Prompt.`;
 
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
@@ -135,7 +73,8 @@ async function callGroq(url: string, apiKey: string) {
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: promptText }
       ],
-      temperature: 0.3,
+      temperature: 0.7,
+      max_tokens: 4096,
       response_format: { type: "json_object" }
     }),
   });
@@ -149,13 +88,19 @@ async function callGroq(url: string, apiKey: string) {
   return data.choices[0].message.content;
 }
 
-export default async function handler(req: Request) {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: corsHeaders, status: 200 })
   }
 
   try {
-    const { url } = await req.json()
+    const body = await req.json().catch(() => ({}));
+    const { url } = body;
+
+    if (!url) {
+      throw new Error('Target URL is required');
+    }
+
     const geminiKey = Deno.env.get('GEMINI_API_KEY')
     const groqKey = Deno.env.get('GROQ_API_KEY')
 
@@ -173,7 +118,6 @@ export default async function handler(req: Request) {
 
     if (!jsonText) throw new Error('Empty response from LLM')
     
-    // Cleanup potential markdown
     jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
     
     return new Response(jsonText, {
@@ -181,10 +125,11 @@ export default async function handler(req: Request) {
     })
 
   } catch (error) {
-    console.error('Edge Function error:', error)
-    return new Response(JSON.stringify({ error: error.message }), {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    console.error('Edge Function error:', message)
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
-}
+})

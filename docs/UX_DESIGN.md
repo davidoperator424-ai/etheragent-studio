@@ -94,7 +94,7 @@ Marca/Agencia
 **Propósito**: Centro de creación de contenido con agente
 
 **Estrategia de Negocio**:
-- **Core del negocio**: Generación de videos con lip-sync (ElevenLabs + SyncLabs)
+- **Core del negocio**: Generación de videos nativos con voz integrada.
 - Cola asíncrona de renderizado para producción a escala
 
 **User Flow**:
@@ -233,8 +233,8 @@ Cliente → Usage (Tokens/Minutos)
 |----------|-----|-----------|
 | Supabase | DB, Auth, Realtime | Todos |
 | Stripe | Pagos, Suscripciones | Planes |
-| ElevenLabs | Voz IA | Social Lab |
-| SyncLabs | Lip-sync | Social Lab |
+| OpenAI/Groq | Estrategia IA | Social Lab |
+| SyncLabs | Lip-sync (Legacy) | Social Lab |
 | Google Analytics | Tracking | Todos |
 
 ---

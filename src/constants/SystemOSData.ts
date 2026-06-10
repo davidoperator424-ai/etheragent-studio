@@ -19,7 +19,7 @@ export const SYSTEM_OS_DATA = {
       sender: "Marcus",
       text: "Sistemas en línea, CEO. Soy Marcus. Abriendo el centro de operaciones. ¿Qué métricas auditaremos hoy?",
       audioFile: "ch_opt1.mp3",
-      path: "/dashboard/hub"
+      path: "/dashboard/nexus-brain"
     },
     { 
       id: 'ch_opt2', 

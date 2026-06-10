@@ -10,10 +10,10 @@ import { supabase } from '@/lib/supabaseClient';
 import { usePerformanceMetrics } from '@/hooks/usePerformanceMetrics';
 import { useVoiceStore } from '@/store/useVoiceStore';
 
-const AGENT_KAELEN = {
-  name: "Kaelen R.",
-  role: "Lead ROAS & Conversion Architect",
-  avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=400&auto=format&fit=crop",
+const AGENT_INFO = {
+  name: "Performance AI",
+  role: "ROAS & Conversion Architect",
+  avatar: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=400&auto=format&fit=crop",
   status: "Online"
 };
 
@@ -31,7 +31,7 @@ function AIVoiceBubble({ message, isPlaying, onTogglePlay }: AIVoiceBubbleProps)
       <div className="flex items-start gap-3">
         <button
           onClick={() => onTogglePlay(message.id)}
-          className="mt-0.5 w-7 h-7 rounded-full bg-violet-500 hover:bg-violet-400 flex items-center justify-center transition-colors flex-shrink-0"
+          className="mt-0.5 w-7 h-7 rounded-full bg-emerald-500 hover:bg-emerald-400 flex items-center justify-center transition-colors flex-shrink-0"
         >
           {isPlaying ? (
             <Pause size={12} className="text-black" />
@@ -41,15 +41,15 @@ function AIVoiceBubble({ message, isPlaying, onTogglePlay }: AIVoiceBubbleProps)
         </button>
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] text-violet-400 font-mono uppercase tracking-wider">
-              {isPlaying ? 'Speaking...' : 'ElevenLabs Voice ID'}
+            <span className="text-[10px] text-emerald-400 font-mono uppercase tracking-wider">
+              {isPlaying ? 'Speaking...' : 'Voice Model ID'}
             </span>
             {isPlaying && (
               <div className="flex items-center gap-0.5 h-3">
                 {[...Array(4)].map((_, i) => (
                   <motion.div
                     key={i}
-                    className="w-0.5 rounded-full bg-violet-400"
+                    className="w-0.5 rounded-full bg-emerald-400"
                     animate={{ height: [4, Math.random() * 10 + 4, 4] }}
                     transition={{ duration: 0.4, repeat: Infinity, delay: i * 0.1 }}
                   />
@@ -95,7 +95,7 @@ export default function PerformanceAdsLab({ isDemoMode: propDemoMode = false }: 
 
   useEffect(() => {
     if (isDemo) {
-      const kaelenWelcome = "Bienvenido al Performance Lab, CEO. Soy Kaelen, tu arquitecto de conversiones. Aquí optimizaremos tu ROAS con precisión quirúrgica. ¿Listo para inyectar presupuesto?";
+      const kaelenWelcome = "Bienvenido al Performance Lab. Soy tu arquitecto de conversiones. Aquí optimizaremos tu ROAS con precisión quirúrgica. ¿Listo para inyectar presupuesto?";
       
       window.speechSynthesis.onvoiceschanged = () => speak(kaelenWelcome, "viktor");
       if (window.speechSynthesis.getVoices().length > 0) speak(kaelenWelcome, "viktor");
@@ -135,7 +135,7 @@ export default function PerformanceAdsLab({ isDemoMode: propDemoMode = false }: 
   useEffect(() => {
     if (!isDemo) return;
 
-    const demoOrder = `Inyecta ${formatCurrency(metrics.budget || 150000)} en LinkedIn y Meta Ads. Sincroniza assets de Valeria y Viktor. Objetivo: CPA ${metrics.cpa || '-42%'}.`;
+    const demoOrder = `Inyecta ${formatCurrency(metrics.budget || 150000)} en LinkedIn y Meta Ads. Sincroniza assets creativos. Objetivo: CPA ${metrics.cpa || '-42%'}.`;
     let charIndex = 0;
 
     const typeInterval = setInterval(() => {
@@ -205,19 +205,19 @@ export default function PerformanceAdsLab({ isDemoMode: propDemoMode = false }: 
         <div className="h-20 border-b border-white/5 bg-white/5 flex items-center px-6 justify-between backdrop-blur-md">
           <div className="flex items-center gap-4">
             <div className="relative">
-              <img src={AGENT_KAELEN.avatar} alt="Agent" className="w-10 h-10 rounded-full object-cover border border-violet-500/50" />
-              <div className="absolute bottom-0 right-0 w-3 h-3 bg-violet-500 border-2 border-zinc-900 rounded-full shadow-[0_0_10px_rgba(139,92,246,0.8)]" />
+              <img src={AGENT_INFO.avatar} alt="Agent" className="w-10 h-10 rounded-full object-cover border border-emerald-500/50" />
+              <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-zinc-900 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
             </div>
             <div>
               <h2 className="text-white font-bold flex items-center gap-2">
-                {AGENT_KAELEN.name} <CheckCircle2 size={14} className="text-violet-500" />
+                {AGENT_INFO.name} <CheckCircle2 size={14} className="text-emerald-500" />
               </h2>
-              <p className="text-xs text-zinc-400 font-mono">{AGENT_KAELEN.role}</p>
+              <p className="text-xs text-zinc-400 font-mono">{AGENT_INFO.role}</p>
             </div>
           </div>
-          <div className="px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 flex items-center gap-2">
-            <Sparkles size={12} className="text-violet-400" />
-            <span className="text-[10px] text-violet-400 font-mono uppercase tracking-widest">Active Session</span>
+          <div className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2">
+            <Sparkles size={12} className="text-emerald-400" />
+            <span className="text-[10px] text-emerald-400 font-mono uppercase tracking-widest">Active Session</span>
           </div>
         </div>
 
@@ -238,7 +238,7 @@ export default function PerformanceAdsLab({ isDemoMode: propDemoMode = false }: 
                   />
                 ) : (
                   <div className={`max-w-[80%] rounded-[1.5rem] px-5 py-3 text-sm ${msg.sender === 'user'
-                    ? 'bg-violet-600 text-white rounded-br-sm'
+                    ? 'bg-emerald-600 text-white rounded-br-sm'
                     : 'bg-white/10 text-zinc-200 rounded-bl-sm border border-white/5'
                     }`}>
                     {msg.text}
@@ -250,9 +250,9 @@ export default function PerformanceAdsLab({ isDemoMode: propDemoMode = false }: 
             {isTyping && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
                 <div className="bg-white/5 rounded-full px-5 py-4 flex items-center gap-1.5 border border-white/5">
-                  <div className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce" />
-                  <div className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                  <div className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
+                  <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce" />
+                  <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                  <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
                 </div>
               </motion.div>
             )}
@@ -267,12 +267,12 @@ export default function PerformanceAdsLab({ isDemoMode: propDemoMode = false }: 
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Dicta instrucciones a Kaelen..."
-              className="w-full bg-white/5 border border-white/10 focus:border-violet-500/50 focus:bg-white/10 transition-all rounded-full py-4 pl-6 pr-14 text-white text-sm outline-none placeholder:text-zinc-500"
+              className="w-full bg-white/5 border border-white/10 focus:border-emerald-500/50 focus:bg-white/10 transition-all rounded-full py-4 pl-6 pr-14 text-white text-sm outline-none placeholder:text-zinc-500"
             />
             <button
               type="submit"
               disabled={!inputValue.trim() || isTyping}
-              className="absolute right-2 p-2 bg-violet-500 hover:bg-violet-400 disabled:bg-zinc-700 text-black rounded-full transition-colors"
+              className="absolute right-2 p-2 bg-emerald-500 hover:bg-emerald-400 disabled:bg-zinc-700 text-black rounded-full transition-colors"
             >
               <Send size={16} />
             </button>
@@ -293,43 +293,43 @@ export default function PerformanceAdsLab({ isDemoMode: propDemoMode = false }: 
           </div>
 
           {hasContent ? (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-white flex flex-col">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-zinc-950 flex flex-col">
               {/* Mobile Status Bar */}
-              <div className="pt-8 px-4 pb-2 bg-white flex items-center justify-between">
-                <span className="text-[10px] text-slate-500 font-medium">9:41</span>
+              <div className="pt-8 px-4 pb-2 bg-zinc-950 flex items-center justify-between">
+                <span className="text-[10px] text-zinc-500 font-medium">9:41</span>
                 <div className="flex items-center gap-1">
-                  <div className="w-4 h-2 border border-slate-400 rounded-sm relative">
-                    <div className="absolute inset-0.5 bg-slate-600 rounded-[1px]" />
+                  <div className="w-4 h-2 border border-zinc-600 rounded-sm relative">
+                    <div className="absolute inset-0.5 bg-zinc-700 rounded-[1px]" />
                   </div>
                 </div>
               </div>
 
               {/* LinkedIn Mobile Header */}
-              <div className="px-3 py-2 flex items-center gap-2 border-b border-slate-100">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+              <div className="px-3 py-2 flex items-center gap-2 border-b border-zinc-800">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center">
                   <span className="text-white font-bold text-[10px]">EA</span>
                 </div>
                 <div className="flex-1">
-                  <p className="text-slate-900 text-xs font-semibold">EtherAgent Studio</p>
-                  <p className="text-slate-400 text-[10px]">12,450 followers • Promoted</p>
+                  <p className="text-zinc-100 text-xs font-semibold">EtherAgent Studio</p>
+                  <p className="text-zinc-400 text-[10px]">12,450 followers • Promoted</p>
                 </div>
-                <MoreHorizontal size={16} className="text-slate-400" />
+                <MoreHorizontal size={16} className="text-zinc-400" />
               </div>
 
               {/* Ad Copy */}
               <div className="px-3 py-2">
-                <p className="text-slate-800 text-xs leading-relaxed">
+                <p className="text-zinc-200 text-xs leading-relaxed">
                   🚀 <span className="font-semibold">The Death of Traditional Video Production</span><br />
                   Stop spending $50K on video shoots. EtherAgent OS compiles AI campaigns in minutes.
-                  {' '}<span className="text-violet-600 font-medium">Book your demo today.</span>
+                  {' '}<span className="text-emerald-600 font-medium">Book your demo today.</span>
                 </p>
               </div>
 
               {/* Ad Image with Voice Player */}
               <div className="relative flex-1 min-h-0">
                 {assetLoading ? (
-                  <div className="w-full h-full flex items-center justify-center bg-zinc-100">
-                    <Loader2 className="animate-spin text-violet-500" size={32} />
+                  <div className="w-full h-full flex items-center justify-center bg-zinc-900">
+                    <Loader2 className="animate-spin text-emerald-500" size={32} />
                   </div>
                 ) : adUrl ? (
                   adUrl.includes('.mp4') ? (
@@ -352,7 +352,7 @@ export default function PerformanceAdsLab({ isDemoMode: propDemoMode = false }: 
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setIsAdPlaying(!isAdPlaying)}
-                        className="w-8 h-8 rounded-full bg-violet-500 hover:bg-violet-400 flex items-center justify-center transition-colors flex-shrink-0"
+                        className="w-8 h-8 rounded-full bg-emerald-500 hover:bg-emerald-400 flex items-center justify-center transition-colors flex-shrink-0"
                       >
                         {isAdPlaying ? (
                           <Pause size={14} className="text-white" />
@@ -364,7 +364,7 @@ export default function PerformanceAdsLab({ isDemoMode: propDemoMode = false }: 
                         {[...Array(14)].map((_, i) => (
                           <motion.div
                             key={i}
-                            className="w-1 bg-violet-400 rounded-full"
+                            className="w-1 bg-emerald-400 rounded-full"
                             animate={{
                               height: isAdPlaying ? [4, Math.random() * 18 + 4, 4] : 4,
                             }}
@@ -385,59 +385,59 @@ export default function PerformanceAdsLab({ isDemoMode: propDemoMode = false }: 
               </div>
 
               {/* Engagement Bar */}
-              <div className="px-3 py-2 bg-white border-t border-slate-100">
+              <div className="px-3 py-2 bg-zinc-950 border-t border-zinc-800">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1">
-                      <TrendingUp size={14} className="text-slate-500" />
-                      <span className="text-slate-600 text-[10px] font-medium">1,247</span>
+                      <TrendingUp size={14} className="text-zinc-500" />
+                      <span className="text-zinc-400 text-[10px] font-medium">1,247</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <MousePointer size={14} className="text-slate-500" />
-                      <span className="text-slate-600 text-[10px] font-medium">89</span>
+                      <MousePointer size={14} className="text-zinc-500" />
+                      <span className="text-zinc-400 text-[10px] font-medium">89</span>
                     </div>
                   </div>
-                  <button className="px-3 py-1 bg-violet-600 text-white text-[10px] font-bold rounded-full">
+                  <button className="px-3 py-1 bg-emerald-600 text-white text-[10px] font-bold rounded-full">
                     Learn More
                   </button>
                 </div>
               </div>
 
               {/* Telemetry Footer inside phone */}
-              <div className="px-3 py-2 bg-slate-50 border-t border-slate-100">
+              <div className="px-3 py-2 bg-zinc-900 border-t border-zinc-800">
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-1">
-                    <BarChart3 size={10} className="text-violet-400" />
-                    <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider">Campaign Telemetry</span>
+                    <BarChart3 size={10} className="text-emerald-400" />
+                    <span className="text-[9px] font-mono text-zinc-400 uppercase tracking-wider">Campaign Telemetry</span>
                   </div>
-                  <span className="px-2 py-0.5 bg-violet-500/20 text-violet-600 text-[8px] font-mono rounded-full border border-violet-500/30 animate-pulse">
+                  <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-600 text-[8px] font-mono rounded-full border border-emerald-500/30 animate-pulse">
                     LIVE SYNC
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-white rounded-lg p-2 border border-slate-100">
+                  <div className="bg-zinc-900 rounded-lg p-2 border border-zinc-800">
                     <div className="flex items-center gap-1 mb-0.5">
                       <DollarSign size={10} className="text-emerald-500" />
-                      <span className="text-[8px] text-slate-400 font-mono uppercase">Est. CPA</span>
+                      <span className="text-[8px] text-zinc-400 font-mono uppercase">Est. CPA</span>
                     </div>
                     {metricsLoading ? (
-                      <div className="h-4 w-12 bg-slate-200 rounded animate-pulse my-0.5" />
+                      <div className="h-4 w-12 bg-zinc-800 rounded animate-pulse my-0.5" />
                     ) : (
-                      <p className="text-sm font-bold text-slate-900">{metrics.cpa}</p>
+                      <p className="text-sm font-bold text-zinc-100">{metrics.cpa}</p>
                     )}
                     <p className="text-[8px] text-emerald-500">vs. benchmark</p>
                   </div>
-                  <div className="bg-white rounded-lg p-2 border border-slate-100">
+                  <div className="bg-zinc-900 rounded-lg p-2 border border-zinc-800">
                     <div className="flex items-center gap-1 mb-0.5">
-                      <Target size={10} className="text-violet-400" />
-                      <span className="text-[8px] text-slate-400 font-mono uppercase">ROAS</span>
+                      <Target size={10} className="text-emerald-400" />
+                      <span className="text-[8px] text-zinc-400 font-mono uppercase">ROAS</span>
                     </div>
                     {metricsLoading ? (
-                      <div className="h-4 w-12 bg-slate-200 rounded animate-pulse my-0.5" />
+                      <div className="h-4 w-12 bg-zinc-800 rounded animate-pulse my-0.5" />
                     ) : (
-                      <p className="text-sm font-bold text-slate-900">{metrics.roas}</p>
+                      <p className="text-sm font-bold text-zinc-100">{metrics.roas}</p>
                     )}
-                    <p className="text-[8px] text-violet-500">vs. avg</p>
+                    <p className="text-[8px] text-emerald-500">vs. avg</p>
                   </div>
                 </div>
               </div>

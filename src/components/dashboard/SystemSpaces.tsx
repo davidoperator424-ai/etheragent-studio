@@ -59,11 +59,11 @@ const SCRIPT_PRESETS = {
 
 const AVATAR_EXAMPLES = [
   { id: 'eth_zero', name: 'David G.', role: 'EtherAgent Founder', niche: 'Dogfooding Campaign', trust: 99, desc: 'Demo instance - eats own dog food' },
-  { id: 'a1', name: 'Marcus V.', role: 'Enterprise FinTech Exec', niche: 'High-Ticket B2B', trust: 98, desc: 'B2B Sales closer' },
+  { id: 'a1', name: 'Exec A1', role: 'Enterprise FinTech Exec', niche: 'High-Ticket B2B', trust: 98, desc: 'B2B Sales closer' },
   { id: 'a2', name: 'Elena R.', role: 'AI Tech Founder', niche: 'SaaS & Digital Products', trust: 96, desc: 'Silicon Valley energy' },
   { id: 'a3', name: 'Dr. Aris', role: 'Medical Specialist', niche: 'Health & Wellness', trust: 99, desc: 'Scientific authority' },
-  { id: 'a4', name: 'Viktor S.', role: 'E-commerce Growth', niche: 'D2C & Retention', trust: 97, desc: 'LTV maximization' },
-  { id: 'eth_sdr_01', name: 'Valeria M.', role: 'Growth Strategist', niche: 'LATAM SDR', trust: 98.5, desc: 'Bilingual closer' },
+  { id: 'a4', name: 'Exec A4', role: 'E-commerce Growth', niche: 'D2C & Retention', trust: 97, desc: 'LTV maximization' },
+  { id: 'eth_sdr_01', name: 'Growth SDR', role: 'Growth Strategist', niche: 'LATAM SDR', trust: 98.5, desc: 'Bilingual closer' },
 ];
 
 const URL_EXAMPLES = [
@@ -136,11 +136,11 @@ export default function SystemSpaces() {
     if (!selectedAvatar) return '---';
     const names: Record<string, string> = {
       'eth_zero': 'David G.',
-      'a1': 'Marcus V.',
+      'a1': 'Exec A1',
       'a2': 'Elena R.',
       'a3': 'Dr. Aris',
-      'a4': 'Viktor S.',
-      'eth_sdr_01': 'Valeria M.',
+      'a4': 'Exec A4',
+      'eth_sdr_01': 'Growth SDR',
     };
     return names[selectedAvatar] || 'Unknown';
   }, [selectedAvatar]);
@@ -355,8 +355,8 @@ Provide a comprehensive marketing analysis including:
             <span className="text-[10px] text-emerald-400 font-mono">SYSTEM ONLINE</span>
           </div>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-black/40 rounded-lg border border-white/10">
-            <Cpu size={12} className="text-purple-400" />
-            <span className="text-[10px] text-purple-400 font-mono">GPU: ACTIVE</span>
+            <Cpu size={12} className="text-indigo-400" />
+            <span className="text-[10px] text-indigo-400 font-mono">GPU: ACTIVE</span>
           </div>
           {groqQueue.isProcessing && (
             <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 rounded-lg border border-amber-500/30">
@@ -439,15 +439,15 @@ Provide a comprehensive marketing analysis including:
         </div>
 
         {/* CARD 2: TOPOLOGY RENDER */}
-        <div className="bg-zinc-950/60 backdrop-blur-xl border border-cyan-500/20 rounded-2xl overflow-hidden flex flex-col">
-          <div className="px-5 py-4 border-b border-cyan-500/10 bg-cyan-500/5">
+        <div className="bg-zinc-950/60 backdrop-blur-md border border-indigo-500/20 rounded-2xl overflow-hidden flex flex-col">
+          <div className="px-5 py-4 border-b border-indigo-500/10 bg-indigo-500/5">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-                <MapPin size={16} className="text-cyan-400" />
+              <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                <MapPin size={16} className="text-indigo-400" />
               </div>
               <div>
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider">Topology Render</h3>
-                <p className="text-[10px] text-cyan-400/60">Environment & Location</p>
+                <p className="text-[10px] text-indigo-400/60">Environment & Location</p>
               </div>
             </div>
           </div>
@@ -461,8 +461,8 @@ Provide a comprehensive marketing analysis including:
                     alt="Location Preview" 
                     className="w-full h-48 object-cover rounded-xl border border-white/10"
                   />
-                  <div className="absolute top-3 right-3 px-3 py-1 bg-black/70 backdrop-blur rounded-full border border-cyan-500/30">
-                    <span className="text-xs font-bold text-cyan-400">{locationPresets.find(l => l.id === selectedLocation)?.category}</span>
+                  <div className="absolute top-3 right-3 px-3 py-1 bg-black/70 backdrop-blur-md rounded-full border border-indigo-500/30">
+                    <span className="text-xs font-bold text-indigo-400">{locationPresets.find(l => l.id === selectedLocation)?.category}</span>
                   </div>
                 </div>
 
@@ -471,7 +471,7 @@ Provide a comprehensive marketing analysis including:
                   <select
                     value={selectedLocation}
                     onChange={(e) => setSelectedLocation(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/50"
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500/50"
                   >
                     <option value="">-- Select Location --</option>
                     {locationPresets.map(loc => (
@@ -480,9 +480,9 @@ Provide a comprehensive marketing analysis including:
                   </select>
                 </div>
 
-                <div className="p-4 bg-cyan-500/5 rounded-xl border border-cyan-500/10">
+                <div className="p-4 bg-indigo-500/5 rounded-xl border border-indigo-500/10">
                   <div className="flex items-center gap-2 mb-2">
-                    <Globe size={12} className="text-cyan-400" />
+                    <Globe size={12} className="text-indigo-400" />
                     <span className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Description</span>
                   </div>
                   <p className="text-sm text-white">{locationPresets.find(l => l.id === selectedLocation)?.description}</p>
@@ -492,7 +492,7 @@ Provide a comprehensive marketing analysis including:
                   <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold mb-2 block">Niche Prompt</label>
                   <textarea
                     placeholder="Describe the visual environment..."
-                    className="w-full h-32 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-cyan-500/50 resize-none"
+                    className="w-full h-32 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 resize-none"
                     defaultValue={locationPresets.find(l => l.id === selectedLocation)?.prompt}
                   />
                 </div>
@@ -508,26 +508,26 @@ Provide a comprehensive marketing analysis including:
         </div>
 
         {/* CARD 3: NEURAL AUDIO */}
-        <div className="bg-zinc-950/60 backdrop-blur-xl border border-violet-500/20 rounded-2xl overflow-hidden flex flex-col">
-          <div className="px-5 py-4 border-b border-violet-500/10 bg-violet-500/5">
+        <div className="bg-zinc-950/60 backdrop-blur-md border border-indigo-500/20 rounded-2xl overflow-hidden flex flex-col">
+          <div className="px-5 py-4 border-b border-indigo-500/10 bg-indigo-500/5">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
-                <Mic size={16} className="text-violet-400" />
+              <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                <Mic size={16} className="text-indigo-400" />
               </div>
               <div>
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider">Neural Audio</h3>
-                <p className="text-[10px] text-violet-400/60">Voice & Script Synthesis</p>
+                <p className="text-[10px] text-indigo-400/60">Voice & Script Synthesis</p>
               </div>
             </div>
           </div>
           
           <div className="flex-1 p-5 overflow-y-auto">
             <div className="mb-4">
-              <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold mb-2 block">Voice Model (ElevenLabs)</label>
+              <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold mb-2 block">Voice Model (Neural Engine)</label>
               <select
                 value={selectedVoice}
                 onChange={(e) => setSelectedVoice(e.target.value)}
-                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/50"
+                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500/50"
               >
                 {voicePresets.map(voice => (
                   <option key={voice.id} value={voice.id}>{voice.name}</option>
@@ -535,13 +535,13 @@ Provide a comprehensive marketing analysis including:
               </select>
             </div>
 
-            <div className="p-4 bg-violet-500/5 rounded-xl border border-violet-500/10 mb-4">
-              <div className="flex items-center justify-between mb-2">
+            <div className="p-4 bg-indigo-500/5 rounded-xl border border-indigo-500/10 mb-4">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Sparkles size={12} className="text-violet-400" />
-                  <span className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Voice Style</span>
+                  <Sparkles size={12} className="text-indigo-400" />
+                  <span className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Active Voice</span>
                 </div>
-                <span className="text-xs text-violet-400">{voicePresets.find(v => v.id === selectedVoice)?.style}</span>
+                <span className="text-xs text-indigo-400">{voicePresets.find(v => v.id === selectedVoice)?.style}</span>
               </div>
               <p className="text-xs text-white/60">{voicePresets.find(v => v.id === selectedVoice)?.desc}</p>
             </div>
@@ -553,7 +553,7 @@ Provide a comprehensive marketing analysis including:
                   onClick={() => setScriptLanguage('en')}
                   className={`flex-1 text-xs py-2 rounded-lg font-medium transition-all ${
                     scriptLanguage === 'en' 
-                      ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40' 
+                      ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40' 
                       : 'bg-black/40 text-white/40 border border-white/10 hover:text-white/60'
                   }`}
                 >
@@ -563,7 +563,7 @@ Provide a comprehensive marketing analysis including:
                   onClick={() => setScriptLanguage('es')}
                   className={`flex-1 text-xs py-2 rounded-lg font-medium transition-all ${
                     scriptLanguage === 'es' 
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' 
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' 
                       : 'bg-black/40 text-white/40 border border-white/10 hover:text-white/60'
                   }`}
                 >
@@ -593,7 +593,7 @@ Provide a comprehensive marketing analysis including:
               value={audioScript}
               onChange={(e) => setAudioScript(e.target.value)}
               placeholder="Enter your script for synthesis..."
-              className="w-full h-40 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-violet-500/50 resize-none"
+              className="w-full h-40 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 resize-none"
             />
             
             <div className="flex items-center justify-between mt-2 text-[10px] text-white/40">
@@ -604,15 +604,15 @@ Provide a comprehensive marketing analysis including:
         </div>
 
         {/* CARD 4: QUANTUM MERGE */}
-        <div className="bg-zinc-950/60 backdrop-blur-xl border border-purple-500/20 rounded-2xl overflow-hidden flex flex-col">
-          <div className="px-5 py-4 border-b border-purple-500/10 bg-purple-500/5">
+        <div className="bg-zinc-950/60 backdrop-blur-md border border-emerald-500/20 rounded-2xl overflow-hidden flex flex-col">
+          <div className="px-5 py-4 border-b border-emerald-500/10 bg-emerald-500/5">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                <Zap size={16} className="text-purple-400" />
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                <Zap size={16} className="text-emerald-400" />
               </div>
               <div>
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider">Quantum Merge</h3>
-                <p className="text-[10px] text-purple-400/60">Preview & Execute</p>
+                <p className="text-[10px] text-emerald-400/60">Preview & Execute</p>
               </div>
             </div>
           </div>
@@ -621,7 +621,7 @@ Provide a comprehensive marketing analysis including:
             <div className="relative flex-1 bg-black/40 rounded-xl border border-white/10 overflow-hidden mb-4 min-h-[200px]">
               {isRendering ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/80">
-                  <div className="w-16 h-16 rounded-full border-4 border-purple-500/30 border-t-purple-400 animate-spin mb-4" />
+                  <div className="w-16 h-16 rounded-full border-4 border-emerald-500/30 border-t-emerald-400 animate-spin mb-4" />
                   <span className="text-lg font-bold text-white">{Math.round(renderProgress)}%</span>
                   <span className="text-xs text-white/40 mt-1">Compiling Assets...</span>
                 </div>
@@ -651,7 +651,7 @@ Provide a comprehensive marketing analysis including:
                   <span className="text-[10px] text-white/60">{avatarName}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <MapPin size={10} className="text-cyan-400" />
+                  <MapPin size={10} className="text-indigo-400" />
                   <span className="text-[10px] text-white/60">{locationPresets.find(l => l.id === selectedLocation)?.name?.split(' ')[0]}</span>
                 </div>
               </div>
@@ -663,11 +663,11 @@ Provide a comprehensive marketing analysis including:
                 <span className="text-[9px] text-white/40 uppercase">Avatar</span>
               </div>
               <div className="bg-black/40 rounded-lg p-2 text-center border border-white/5">
-                <MapPin size={14} className="mx-auto text-cyan-400 mb-1" />
+                <MapPin size={14} className="mx-auto text-indigo-400 mb-1" />
                 <span className="text-[9px] text-white/40 uppercase">Scene</span>
               </div>
               <div className="bg-black/40 rounded-lg p-2 text-center border border-white/5">
-                <Mic size={14} className="mx-auto text-violet-400 mb-1" />
+                <Mic size={14} className="mx-auto text-indigo-400 mb-1" />
                 <span className="text-[9px] text-white/40 uppercase">Audio</span>
               </div>
             </div>
@@ -675,7 +675,7 @@ Provide a comprehensive marketing analysis including:
             <button
               onClick={handleQuantumMerge}
               disabled={isRendering || !audioScript}
-              className="w-full py-4 bg-gradient-to-r from-emerald-500 via-cyan-500 to-violet-600 rounded-xl font-bold text-white tracking-wider flex items-center justify-center gap-3 hover:shadow-[0_0_40px_rgba(16,185,129,0.4)] hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              className="w-full py-4 bg-emerald-500 rounded-xl font-bold text-black tracking-wider flex items-center justify-center gap-3 hover:bg-emerald-400 shadow-[0_0_30px_rgba(16,185,129,0.3)] hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               {isRendering ? (
                 <>

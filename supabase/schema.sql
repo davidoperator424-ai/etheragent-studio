@@ -107,6 +107,24 @@ CREATE TABLE public.analysis_history (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Visual assets (URLs analyzed by Nexus Brain)
+CREATE TABLE public.visual_assets (
+  id TEXT PRIMARY KEY,
+  url TEXT NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.visual_assets ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Enable read access for all users" ON public.visual_assets
+  FOR SELECT USING (true);
+
+CREATE POLICY "Enable insert for all users" ON public.visual_assets
+  FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Enable update for all users" ON public.visual_assets
+  FOR UPDATE USING (true);
+
 -- Row Level Security Policies
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.avatars ENABLE ROW LEVEL SECURITY;
@@ -226,3 +244,14 @@ INSERT INTO public.system_flows (name, description, category, price) VALUES
   ('Quick Social', '15-second optimized flow for social media', 'social', 0),
   ('Premium Cinematic', '30-second high-quality cinematic flow', 'cinematic', 99.99),
   ('Batch Producer', 'Multiple videos in one session', 'production', 149.99);
+
+-- Campaign videos storage bucket
+INSERT INTO storage.buckets (id, name, public, avif_autodetection, file_size_limit, allowed_mime_types)
+VALUES ('campaign-videos', 'campaign-videos', true, false, 52428800, '{video/mp4,video/webm,video/quicktime}')
+ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "Allow authenticated uploads" ON storage.objects
+  FOR INSERT TO authenticated WITH CHECK (bucket_id = 'campaign-videos');
+
+CREATE POLICY "Allow public read" ON storage.objects
+  FOR SELECT TO public USING (bucket_id = 'campaign-videos');

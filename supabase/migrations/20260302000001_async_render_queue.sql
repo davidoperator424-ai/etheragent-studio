@@ -36,7 +36,7 @@ BEGIN
   SET status = 'processing', metadata = jsonb_build('started_at', NOW())
   WHERE id = v_job_id;
 
-  -- Step 1: Generate audio with ElevenLabs
+  -- Step 1: Initialize video asset logic
   BEGIN
     v_audio_url := NULL;
     -- Audio generation would happen here via external API call

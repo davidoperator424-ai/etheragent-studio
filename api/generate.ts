@@ -59,38 +59,6 @@ async function deductTokens(supabase: any, userId: string, amount: number): Prom
   }
 }
 
-async function generateAudio(script: string, voiceStyle?: string): Promise<string> {
-  const apiKey = process.env.ELEVENLABS_API_KEY;
-  if (!apiKey) return '';
-
-  const voiceMap: Record<string, string> = {
-    'sarcastic': '21m00Tcm4TlvDq8ikWAM',
-    'confident': 'pNInz6obpgDQGcFmaJgB',
-    'energetic': 'ErkuwXXDnWnKuxmSaSVU',
-    'calm': 'AZnzlk1XvdvUeBnXmlYW',
-  };
-
-  const selectedVoice = voiceMap[voiceStyle || 'sarcastic'] || voiceMap.sarcastic;
-
-  const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${selectedVoice}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'xi-api-key': apiKey,
-    },
-    body: JSON.stringify({
-      text: script,
-      model_id: 'eleven_multilingual_v2',
-      voice_settings: { stability: 0.5, similarity_boost: 0.75 },
-    }),
-  });
-
-  if (!response.ok) throw new Error('Failed to generate audio');
-
-  const audioBuffer = await response.arrayBuffer();
-  return `data:audio/mp3;base64,${Buffer.from(audioBuffer).toString('base64')}`;
-}
-
 async function generateVisual(prompt: string, aspectRatio: string): Promise<string> {
   const apiKey = process.env.FAL_API_KEY;
   if (!apiKey) return '';
@@ -172,16 +140,16 @@ export default async function handler(request: Request) {
         return new Response(JSON.stringify({ error: 'Prueba gratuita agotada', code: 'TRIAL_EXHAUSTED' }), { status: 403, headers: corsHeaders });
       }
 
-      const groqSystemPrompt = `Eres el Estratega Supremo de EtherAgent OS. Genera UNA respuesta JSON válida con esta estructura exacta:
+      const groqSystemPrompt = `Eres el Director Creativo de EtherAgent OS. Genera UNA respuesta JSON válida con esta estructura exacta para videos nativos:
 {
-  "marca": "nombre de la marca detectado o generado",
-  "escenas": [
-    {"id": 1, "prompt_imagen": "descripción detallada para generar imagen", "copy": "texto persuasivo corto"},
-    {"id": 2, "prompt_imagen": "descripción detallada para generar imagen", "copy": "texto persuasivo corto"},
-    {"id": 3, "prompt_imagen": "descripción detallada para generar imagen", "copy": "texto persuasivo corto"}
-  ]
+  "mission_id": "Un ID único alfanumérico",
+  "hook": "Un gancho narrativo de 3 segundos",
+  "narrative_body": "Cuerpo persuasivo enfocado en resultados",
+  "on_screen_text": ["TEXTO 1", "TEXTO 2", "TEXTO 3"],
+  "call_to_action": "Instrucción final",
+  "visual_description": "Prompt detallado en inglés para generar o elegir el asset visual"
 }
-El prompt_imagen debe ser en INGLÉS y detallado. Responde SOLO con JSON válido.`;
+Responde SOLO con JSON válido.`;
 
       const groqResponse = await groq.chat.completions.create({
         messages: [{ role: 'system', content: groqSystemPrompt }, { role: 'user', content: prompt }],
@@ -190,17 +158,12 @@ El prompt_imagen debe ser en INGLÉS y detallado. Responde SOLO con JSON válido
       });
 
       let strategy = JSON.parse(groqResponse.choices[0]?.message?.content || '{}');
-      const finalScenes = strategy.escenas.map((escena: any, index: number) => {
-        const enhancedPrompt = `${escena.prompt_imagen}, ultra realistic, professional photography`;
-        const imageUrl = `https://pollinations.ai/p/${encodeURIComponent(enhancedPrompt)}?width=1024&height=1024&nologo=true`;
-        return { id: escena.id, tipo: index === 1 ? 'ooh' : (index === 2 ? 'commercial' : 'social'), copy: escena.copy, imageUrl };
-      });
-
+      
       if (profile && profile.compute_tokens > 0) {
         await supabase.from('profiles').update({ compute_tokens: profile.compute_tokens - 1 }).eq('id', userId);
       }
 
-      return new Response(JSON.stringify({ marca: strategy.marca, escenas: finalScenes }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify(strategy), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     } else {
       // Blueprint Logic
       const authHeader = request.headers.get('Authorization');
@@ -216,12 +179,9 @@ El prompt_imagen debe ser en INGLÉS y detallado. Responde SOLO con JSON válido
       const blueprint = await request.json();
       const { missionId, brand, archetype, script, visualPrompt, aspectRatio, voiceStyle } = blueprint;
 
-      const [audioUrl, visualUrl] = await Promise.all([
-        generateAudio(script, voiceStyle).catch(() => ''),
-        generateVisual(visualPrompt || `${brand} marketing`, aspectRatio || '9:16').catch(() => ''),
-      ]);
+      const visualUrl = await generateVisual(visualPrompt || `${brand} marketing`, aspectRatio || '9:16').catch(() => '');
 
-      if (userId !== 'anonymous' && (audioUrl || visualUrl)) {
+      if (userId !== 'anonymous' && visualUrl) {
         await deductTokens(supabase, userId, DEPLOYMENT_COST);
       }
 
@@ -242,12 +202,13 @@ El prompt_imagen debe ser en INGLÉS y detallado. Responde SOLO con JSON válido
         JSON.stringify({
           success: true,
           missionId,
-          assets: { audio: audioUrl || null, visual: visualUrl || null, script },
+          assets: { audio: null, visual: visualUrl || null, script },
           campaignId: campaign?.id,
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
   } catch (error) {
     console.error('Generation error:', error);
     return new Response(

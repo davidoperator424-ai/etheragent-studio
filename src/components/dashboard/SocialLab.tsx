@@ -1,302 +1,287 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabaseClient';
-import { Sparkles, Zap, Loader2, Upload, Video, Image as ImageIcon, Film, Heart, MessageCircle, Share2, MoreHorizontal, UserCircle2, Bookmark, Send, Play, ArrowRight } from 'lucide-react';
+import { Sparkles, Zap, Loader2, Upload, Video, Image as ImageIcon, Heart, MessageCircle, Share2, MoreHorizontal, UserCircle2, Bookmark, Send, Play, ArrowRight, Brain, Copy, Eye, Clapperboard, CheckCircle2, X, FileUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useTokenBalance } from '@/hooks/useTokenBalance';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCampaignStore } from '@/store/useCampaignStore';
+import { toast } from 'sonner';
 
+interface CampaignAsset {
+  type: string;
+  duration: string;
+  hook: string;
+  voiceover_script: string;
+  visual_description: string;
+  on_screen_text: string[];
+  music_background: string;
+  sound_effects: string;
+  call_to_action: string;
+  emotional_tone: string;
+  pacing_notes: string;
+  video_url?: string;
+  thumbnail_url?: string;
+}
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+interface CampaignData {
+  detected_sector: string;
+  strategy_score: number;
+  angles: string[];
+  creative_rationale: string;
+  assets: CampaignAsset[];
+  audience: { persona: string; psychographics: string; pain_points: string; desires: string; };
+  youtube_seo: { video_title: string; video_description: string; hashtags: string[]; };
+  thumbnail_idea?: string;
+}
 
-let currentAudio: HTMLAudioElement | null = null;
-let currentTimeout: NodeJS.Timeout | null = null;
+interface CampaignRecord {
+  id: string;
+  target_url: string;
+  detected_sector: string;
+  strategy_score: number;
+  campaign_data: CampaignData;
+  created_at: string;
+}
 
-const stopCurrentAudio = () => {
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio.currentTime = 0;
-    currentAudio = null;
-  }
-  if (currentTimeout) {
-    clearTimeout(currentTimeout);
-    currentTimeout = null;
-  }
-};
+function parseVisualSections(markdown: string) {
+  const sections: { label: string; time: string; lines: string[] }[] = [];
+  const lines = markdown.split('\n');
+  let current: { label: string; time: string; lines: string[] } | null = null;
 
-const playMatrixAudio = async (scriptId: string): Promise<boolean> => {
-  try {
-    const { data, error } = await supabase
-      .from('system_scripts')
-      .select('audio_url')
-      .eq('id', scriptId)
-      .maybeSingle();
-
-    if (error || !data || !data.audio_url) {
-      console.warn(`Audio '${scriptId}' no encontrado en Matrix - Continuando en silencio...`);
-      return false;
+  for (const raw of lines) {
+    const line = raw.trim();
+    const headerMatch = line.match(/^(HOOK|DESARROLLO|OUTRO\s*\/?\s*BUCLE)\s*\(([^)]+)\)/i);
+    if (headerMatch) {
+      if (current) sections.push(current);
+      current = { label: headerMatch[1], time: headerMatch[2], lines: [] };
+    } else if (current) {
+      current.lines.push(line || ' ');
     }
-
-    return new Promise((resolve) => {
-      const audio = new Audio(data.audio_url);
-      audio.volume = 0.8;
-      currentAudio = audio;
-
-      audio.onended = () => {
-        currentAudio = null;
-        resolve(true);
-      };
-
-      audio.onerror = (e) => {
-        console.error(`Error reproduciendo '${scriptId}':`, e);
-        currentAudio = null;
-        resolve(false);
-      };
-
-      audio.play().catch(e => {
-        console.warn(`Autoplay bloqueado para '${scriptId}':`, e);
-        resolve(false);
-      });
-    });
-  } catch (error) {
-    console.error("Error crítico en playMatrixAudio:", error);
-    return false;
   }
-};
+  if (current) sections.push(current);
+  return sections;
+}
 
-const playSupabaseAudio = (fileName: string, abortSignal?: { aborted: boolean }): Promise<void> => {
-  return new Promise((resolve) => {
-    if (abortSignal?.aborted) {
-      resolve();
-      return;
-    }
-
-    const baseUrl = "https://njhifpbnrbbhbmwgedtz.supabase.co/storage/v1/object/public/system-audio/";
-    const premiumFileName = fileName.includes('_premium') 
-      ? fileName 
-      : fileName.replace('.mp3', '_premium.mp3');
-    const timestamp = new Date().getTime();
-    
-    currentTimeout = setTimeout(() => {
-      resolve();
-    }, 15000);
-
-    try {
-      const audio = new Audio(`${baseUrl}${premiumFileName}?t=${timestamp}`);
-      audio.volume = 0.8;
-      currentAudio = audio;
-      
-      audio.onended = () => {
-        currentAudio = null;
-        if (currentTimeout) {
-          clearTimeout(currentTimeout);
-          currentTimeout = null;
-        }
-        resolve();
-      };
-
-      audio.onerror = () => {
-        console.warn(`Audio ${premiumFileName} no encontrado - continuando coreografía...`);
-        currentAudio = null;
-        if (currentTimeout) {
-          clearTimeout(currentTimeout);
-          currentTimeout = null;
-        }
-        resolve();
-      };
-
-      audio.play().catch(() => {
-        resolve();
-      });
-    } catch {
-      console.warn(`Audio ${premiumFileName} no disponible - continuando...`);
-      if (currentTimeout) {
-        clearTimeout(currentTimeout);
-        currentTimeout = null;
-      }
-      resolve();
-    }
-  });
-};
-
-const valeriaMsg1 = "🎙️ Analizando activo crudo... Extrayendo transcripción del audio:\n\nPAVO 1: 'Hermano... mi agencia de marketing me está desplumando.'\nPAVO 2: 'Eso es porque sigues contratando humanos, Roberto.'\nPAVO 1: 'Yo los despedí a todos ayer. Ahora uso EtherAgent.'\nPAVO 2: 'Resultados puros. Cero excusas. Salud.'";
-
-const valeriaMsg2 = "⚡ Adaptando para TikTok/Reels. Aplicando cortes de alta retención, inyectando música Phonk de fondo y generando subtítulos con estética 'Apple Noir'.";
-
-const valeriaMsg3 = "✅ Campaña Cero lista. Despliegue orgánico optimizado. Costo: 0 Tokens. Dale Play al activo final a tu derecha.";
+function buildMasterPrompt(asset: CampaignAsset): string {
+  const lines = [
+    `## ${asset.type} (${asset.duration}s)`,
+    '',
+    `### Hook`,
+    asset.hook,
+    '',
+    `### Voiceover`,
+    asset.voiceover_script,
+    '',
+    `### Visual Description`,
+    asset.visual_description,
+    '',
+    `### Textos en pantalla`,
+    asset.on_screen_text.map(t => `- "${t}"`).join('\n'),
+    '',
+    `### Background Music`,
+    asset.music_background,
+    '',
+    `### Sound Effects`,
+    asset.sound_effects,
+    '',
+    `### Call to Action`,
+    asset.call_to_action,
+    '',
+    `### Emotional Tone`,
+    asset.emotional_tone,
+    '',
+    `### Pacing`,
+    asset.pacing_notes,
+  ];
+  return lines.join('\n');
+}
 
 export default function SocialLab() {
   const navigate = useNavigate();
-  const { balance } = useTokenBalance();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const selectedVideo = useCampaignStore(state => state.selectedVideo);
+
+  const [campaign, setCampaign] = useState<CampaignRecord | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeAssetIndex, setActiveAssetIndex] = useState(0);
+  const [videoStarted, setVideoStarted] = useState(false);
+
+  useEffect(() => {
+    // Reset video state when switching assets
+    setVideoStarted(false);
+  }, [activeAssetIndex]);
   const [mediaType, setMediaType] = useState<'video' | 'image'>('video');
   const [videoFormat, setVideoFormat] = useState<'reel' | 'feed' | 'story'>('reel');
-  const [imageFormat, setImageFormat] = useState<'post' | 'story' | 'banner'>('post');
-  const [campaignAsset, setCampaignAsset] = useState<any>(null);
-
-  const [assets, setAssets] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [isCompiling, setIsCompiling] = useState(false);
-  const [chatStep, setChatStep] = useState(1);
-
-  const [demoState, setDemoState] = useState<'idle' | 'typing1' | 'typing2' | 'finished'>('idle');
-  const [mobileView, setMobileView] = useState<'idle' | 'rendering' | 'final_deployed'>('idle');
-  const [chatMessages, setChatMessages] = useState<{role: 'user' | 'assistant', content: string, typing?: boolean}[]>([]);
-  const isDemoAborted = useRef(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const savedCampaign = sessionStorage.getItem('current_campaign');
-    if (savedCampaign) {
+    const fetchCampaign = async () => {
+      if (!user) { setLoading(false); return; }
+      const campaignId = searchParams.get('campaign');
       try {
-        const parsed = JSON.parse(savedCampaign);
-        const escenas = parsed.metrics?.escenas || [];
-        const socialScene = escenas.find((e: any) => e.tipo === 'social') || escenas[0];
-        if (socialScene) {
-          setCampaignAsset(socialScene);
-          setMobileView('final_deployed');
-          setDemoState('finished');
-          setChatMessages([
-            { role: 'assistant', content: "🤖 [MARCUS]: Transfiriendo datos a Valeria. Campaña activa detectada.", typing: false },
-            { role: 'assistant', content: "✅ Activo visual cargado desde Command Hub. El gancho visual está listo. ¿Deseas renderizar el video premium?", typing: false }
-          ]);
+        let data, error;
+        if (campaignId) {
+          const res = await supabase.from('nexus_youtube_ads').select('*').eq('id', campaignId).single();
+          data = res.data;
+          error = res.error;
+        } else {
+          const res = await supabase.from('nexus_youtube_ads').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).single();
+          data = res.data;
+          error = res.error;
         }
-      } catch (e) {
-        console.error('Error parseando campaign:', e);
+        if (error && error.code !== 'PGRST116') throw error;
+        if (data) setCampaign(data as CampaignRecord);
+      } catch (err) {
+        console.error('Error fetching campaign:', err);
+      } finally {
+        setLoading(false);
       }
-    }
-  }, []);
-
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [hasUserInteracted, setHasUserInteracted] = useState(false);
-
-  const getActiveAssetId = () => mediaType === 'video' ? `social_video_${videoFormat}` : `social_image_${imageFormat}`;
-  const activeAssetId = getActiveAssetId();
-  const currentAssetUrl = assets[activeAssetId];
-
-  useEffect(() => {
-    const fetchAssets = async () => {
-      setLoading(true);
-      const { data } = await supabase
-        .from('visual_assets')
-        .select('id, url')
-        .in('id', [
-          'social_video_reel', 'social_video_feed', 'social_video_story',
-          'social_image_post', 'social_image_story', 'social_image_banner'
-        ]);
-        
-      if (data) {
-        const loadedAssets: Record<string, string> = {};
-        data.forEach(item => loadedAssets[item.id] = item.url);
-        setAssets(loadedAssets);
-      }
-      setLoading(false);
     };
-    fetchAssets();
-  }, []);
+    fetchCampaign();
+  }, [searchParams, user]);
 
-  // Estado siempre inicia en 'reel' - sin lógica de detección de desktop
+  const baseAsset = campaign?.campaign_data?.assets?.[activeAssetIndex];
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Override video_url if an asset was selected from the VisualMatrix
+  const currentAsset = baseAsset ? {
+    ...baseAsset,
+    video_url: selectedVideo?.url || baseAsset.video_url,
+    thumbnail_url: selectedVideo?.thumbnail || baseAsset.thumbnail_url
+  } : null;
+
+  const handleCopy = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copiado al portapapeles`);
+  };
+
+  const handleCopyMaster = () => {
+    if (!currentAsset) return;
+    const prompt = buildMasterPrompt(currentAsset);
+    handleCopy(prompt, 'Prompt Maestro');
+  };
+
+  const uploadVideo = useCallback(async (file: File) => {
+    if (!campaign || !currentAsset || !user) return;
+    setUploading(true);
     try {
-      const file = event.target.files?.[0];
-      if (!file) return;
-      setUploading(true);
-      
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${activeAssetId}-${Date.now()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage.from('visual-assets').upload(fileName, file);
+      const ext = file.name.split('.').pop() || 'mp4';
+      const filePath = `${campaign.id}/${currentAsset.type}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('campaign-videos')
+        .upload(filePath, file, { upsert: true });
+
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage.from('visual-assets').getPublicUrl(fileName);
-      await supabase.from('visual_assets').upsert({ id: activeAssetId, url: publicUrl, updated_at: new Date() });
+      const { data: { publicUrl } } = supabase.storage
+        .from('campaign-videos')
+        .getPublicUrl(filePath);
 
-      setAssets(prev => ({ ...prev, [activeAssetId]: publicUrl }));
-    } catch (error) {
-      console.error('Error subiendo asset:', error);
-      alert('Error al subir el archivo.');
+      const updatedAssets = campaign.campaign_data.assets.map((a, i) =>
+        i === activeAssetIndex ? { ...a, video_url: publicUrl } : a
+      );
+
+      const updatedCampaignData = { ...campaign.campaign_data, assets: updatedAssets };
+
+      const { error: updateError } = await supabase
+        .from('nexus_youtube_ads')
+        .update({ campaign_data: updatedCampaignData })
+        .eq('id', campaign.id);
+
+      if (updateError) throw updateError;
+
+      setCampaign({ ...campaign, campaign_data: updatedCampaignData });
+      toast.success('Video subido y vinculado a la campaña');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error al subir video';
+      console.error('Upload error:', message);
+      toast.error(message);
     } finally {
       setUploading(false);
     }
+  }, [campaign, currentAsset, activeAssetIndex, user]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadVideo(file);
+    e.target.value = '';
   };
 
-  const handleCompile = () => {
-    setIsCompiling(true);
-    setTimeout(() => { setIsCompiling(false); setChatStep(2); }, 2500);
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('video/')) {
+      uploadVideo(file);
+    } else {
+      toast.error('Solo se permiten archivos de video');
+    }
   };
 
-  const handleSkipDemo = useCallback(() => {
-    isDemoAborted.current = true;
-    stopCurrentAudio();
-    setMobileView('final_deployed');
-    setDemoState('finished');
-    
-    setChatMessages([
-      { role: 'assistant', content: valeriaMsg1, typing: false },
-      { role: 'user', content: 'Procede, Valeria. Adapta para TikTok.' },
-      { role: 'assistant', content: valeriaMsg2, typing: false },
-      { role: 'assistant', content: valeriaMsg3, typing: false }
-    ]);
-  }, []);
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
 
-  const runDemoChoreography = useCallback(async () => {
-    isDemoAborted.current = false;
-    setDemoState('typing1');
-    setMobileView('rendering');
-    
-    // 1. MARCUS SALUDA AL USUARIO
-    setChatMessages([{ role: 'assistant', content: "🤖 [MARCUS]: Saludos, David. Iniciando secuencia de orquestación para Campaña Cero. Transfiriendo control del activo a Valeria para optimización viral.", typing: true }]);
-    await sleep(3000);
-    if (isDemoAborted.current) return;
-    
-    setChatMessages(prev => prev.map(m => m.typing ? { ...m, typing: false } : m));
-    await playMatrixAudio('ch_welcome'); // Marcus audio
-    if (isDemoAborted.current) return;
-    
-    await sleep(1500);
-    if (isDemoAborted.current) return;
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+  };
 
-    // 2. VALERIA TOMA EL CONTROL
-    setChatMessages(prev => [...prev, { role: 'assistant', content: valeriaMsg1, typing: true }]);
-    await sleep(3000);
-    if (isDemoAborted.current) return;
-    
-    setChatMessages(prev => prev.map(m => m.typing ? { ...m, typing: false } : m));
-    await playMatrixAudio('tr_social'); // Valeria audio
-    if (isDemoAborted.current) return;
-    
-    await sleep(2000);
-    if (isDemoAborted.current) return;
+  const sections = currentAsset ? parseVisualSections(currentAsset.visual_description) : [];
 
-    setChatMessages(prev => [...prev, { role: 'user', content: 'Procede, Valeria. Adapta para TikTok.' }]);
-    await sleep(1000);
-    if (isDemoAborted.current) return;
+  const sectionColors: Record<string, string> = {
+    'HOOK': 'border-l-emerald-500 bg-emerald-500/5',
+    'DESARROLLO': 'border-l-indigo-500 bg-indigo-500/5',
+    'OUTRO': 'border-l-amber-500 bg-amber-500/5',
+    'OUTRO / BUCLE': 'border-l-amber-500 bg-amber-500/5',
+  };
 
-    // 3. VALERIA PROCESA
-    setMobileView('rendering');
-    if (!isDemoAborted.current) await playMatrixAudio('tr_ecommerce_social');
-    if (isDemoAborted.current) return;
+  const sectionLabels: Record<string, string> = {
+    'HOOK': 'HOOK',
+    'DESARROLLO': 'DESARROLLO',
+    'OUTRO': 'OUTRO / BUCLE',
+    'OUTRO / BUCLE': 'OUTRO / BUCLE',
+  };
 
-    await sleep(3000);
-    if (isDemoAborted.current) return;
+  if (loading) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-6">
+        <div className="relative">
+          <div className="absolute inset-0 bg-emerald-500/20 blur-2xl rounded-full animate-pulse" />
+          <Loader2 className="w-16 h-16 text-emerald-400 animate-spin relative z-10" />
+        </div>
+        <p className="text-emerald-400/80 font-mono text-xs tracking-[0.3em] uppercase animate-pulse">Cargando Social Lab...</p>
+      </div>
+    );
+  }
 
-    // 4. VALERIA FINALIZA
-    setMobileView('final_deployed');
-    setChatMessages(prev => [...prev, { role: 'assistant', content: valeriaMsg2, typing: true }]);
-    await sleep(3000);
-    if (isDemoAborted.current) return;
+  if (!campaign) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-8 text-center px-4">
+        <div className="w-24 h-24 rounded-3xl bg-zinc-900/60 border border-white/10 flex items-center justify-center">
+          <Brain className="w-12 h-12 text-zinc-700" />
+        </div>
+        <div className="space-y-3 max-w-md">
+          <h2 className="text-2xl font-black text-white tracking-tight">Sin Campaña Activa</h2>
+          <p className="text-zinc-500 text-sm leading-relaxed">
+            Inicia una ingestión en el Nexus Brain para generar tu primera campaña. Los datos fluirán automáticamente aquí.
+          </p>
+        </div>
+        <button
+          onClick={() => navigate('/dashboard/nexus-brain')}
+          className="px-8 py-4 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl transition-all active:scale-95 shadow-[0_0_30px_rgba(16,185,129,0.3)] flex items-center gap-3"
+        >
+          <Brain size={18} /> Ir al Nexus Brain <ArrowRight size={16} />
+        </button>
+      </div>
+    );
+  }
 
-    setChatMessages(prev => prev.map(m => m.typing ? { ...m, typing: false } : m));
-    await sleep(2000);
-    if (isDemoAborted.current) return;
-
-    setChatMessages(prev => [...prev, { role: 'assistant', content: valeriaMsg3, typing: false }]);
-    await sleep(2000);
-    if (isDemoAborted.current) return;
-    
-    setDemoState('finished');
-  }, []);
+  const data = campaign.campaign_data;
 
   const TikTokReelOverlay = () => (
     <div className="absolute inset-0 pointer-events-none z-20 flex flex-col justify-between p-4 bg-gradient-to-b from-black/40 via-transparent to-black/60 pt-10">
@@ -310,513 +295,505 @@ export default function SocialLab() {
             <UserCircle2 size={24} className="text-white" />
             <span className="text-white font-bold drop-shadow-md">@EtherAgent</span>
           </div>
-          <p className="text-white text-sm drop-shadow-md line-clamp-2">Dominando el algoritmo. 🚀 #AI #Marketing</p>
-          <div className="flex items-center gap-1 bg-black/40 backdrop-blur w-fit px-2 py-1 rounded-full mt-1">
-             <span className="text-white text-xs">🎵 Sonido Original - EtherAgent</span>
-          </div>
+          <p className="text-white text-sm drop-shadow-md line-clamp-2">{currentAsset?.hook || 'Campaña AI generada'}</p>
         </div>
         <div className="flex flex-col items-center gap-5 pb-2">
-          <div className="flex flex-col items-center gap-1"><div className="w-10 h-10 bg-black/40 backdrop-blur rounded-full flex items-center justify-center"><Heart size={20} className="text-white" fill="white" /></div><span className="text-white text-xs drop-shadow-md">1.2M</span></div>
-          <div className="flex flex-col items-center gap-1"><div className="w-10 h-10 bg-black/40 backdrop-blur rounded-full flex items-center justify-center"><MessageCircle size={20} className="text-white" fill="white" /></div><span className="text-white text-xs drop-shadow-md">45K</span></div>
-          <div className="flex flex-col items-center gap-1"><div className="w-10 h-10 bg-black/40 backdrop-blur rounded-full flex items-center justify-center"><Bookmark size={20} className="text-white" fill="white" /></div><span className="text-white text-xs drop-shadow-md">8K</span></div>
-          <div className="flex flex-col items-center gap-1"><div className="w-10 h-10 bg-black/40 backdrop-blur rounded-full flex items-center justify-center"><Share2 size={20} className="text-white" fill="white" /></div><span className="text-white text-xs drop-shadow-md">11K</span></div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const InstagramStoryOverlay = () => (
-    <div className="absolute inset-0 pointer-events-none z-20 flex flex-col justify-between bg-gradient-to-b from-black/50 via-transparent to-black/50 pt-8 px-4 pb-6">
-      <div className="flex gap-1 mt-2 mb-4">
-        <div className="h-0.5 bg-white/40 flex-1 rounded-full overflow-hidden"><div className="h-full bg-white w-2/3" /></div>
-        <div className="h-0.5 bg-white/40 flex-1 rounded-full" />
-        <div className="h-0.5 bg-white/40 flex-1 rounded-full" />
-      </div>
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <UserCircle2 size={32} className="text-white" />
-          <span className="text-white font-bold text-sm drop-shadow-md">etheragent.ai <span className="text-white/70 font-normal ml-1">2h</span></span>
-        </div>
-        <MoreHorizontal size={20} className="text-white" />
-      </div>
-      <div className="mt-auto flex items-center gap-3">
-        <div className="flex-1 h-10 border border-white/50 rounded-full flex items-center px-4 backdrop-blur-sm">
-          <span className="text-white/80 text-sm">Enviar mensaje...</span>
-        </div>
-        <Heart size={24} className="text-white" />
-        <Send size={24} className="text-white" />
-      </div>
-    </div>
-  );
-
-  const InstagramPostOverlay = () => (
-    <div className="absolute inset-0 pointer-events-none z-20 flex flex-col justify-between pt-10">
-      <div className="h-14 flex items-center justify-between px-3 w-full z-30 relative shrink-0">
-         <div className="flex items-center gap-2">
-           <UserCircle2 size={30} className="text-white" />
-           <span className="text-white font-bold text-sm">etheragent.ai</span>
-         </div>
-         <MoreHorizontal size={20} className="text-white" />
-      </div>
-      
-      <div className="flex-1 w-full"></div>
-
-      <div className="px-3 py-4 flex flex-col gap-2 w-full z-30 relative shrink-0 pb-8 bg-gradient-to-t from-black/80 to-transparent">
-        <div className="flex justify-between items-center mb-1">
-          <div className="flex gap-4">
-             <Heart size={24} className="text-white" />
-             <MessageCircle size={24} className="text-white" />
-             <Send size={24} className="text-white" />
-          </div>
-          <Bookmark size={24} className="text-white" />
-        </div>
-        <span className="text-white font-bold text-sm">8,492 Me gusta</span>
-        <p className="text-white text-sm line-clamp-2"><span className="font-bold mr-2">etheragent.ai</span>Transformando el ecosistema B2B a velocidad luz.</p>
-        <span className="text-white/60 text-[10px] mt-1">HACE 2 HORAS</span>
-      </div>
-    </div>
-  );
-
-  const LinkedInBannerOverlay = () => (
-    <div className="absolute inset-0 pointer-events-none z-20 flex flex-col pt-10">
-       <div className="h-12 flex items-center px-4 shrink-0 bg-white/90 backdrop-blur">
-         <div className="w-6 h-6 bg-[#0a66c2] rounded text-white flex items-center justify-center font-bold text-xs">in</div>
-         <div className="ml-4 w-40 h-6 bg-zinc-200 rounded flex items-center px-2"><span className="text-zinc-400 text-xs">Buscar...</span></div>
-       </div>
-       
-       <div className="flex-1 p-3 flex flex-col pt-4 overflow-hidden">
-          <div className="w-full rounded-lg overflow-hidden flex flex-col border border-zinc-200 bg-white">
-            <div className="p-3 flex items-start gap-2">
-               <UserCircle2 size={36} className="text-zinc-400 shrink-0" />
-               <div className="flex flex-col">
-                 <span className="font-bold text-sm text-black leading-tight">EtherAgent Inc.</span>
-                 <span className="text-[10px] text-zinc-500 leading-tight">1.2M seguidores</span>
-                 <span className="text-[10px] text-zinc-400 flex items-center gap-1">Promocionado</span>
-               </div>
+          {[{ icon: Heart, count: '1.2M' }, { icon: MessageCircle, count: '45K' }, { icon: Bookmark, count: '8K' }, { icon: Share2, count: '11K' }].map(({ icon: Icon, count }) => (
+            <div key={count} className="flex flex-col items-center gap-1">
+              <div className="w-10 h-10 bg-black/40 backdrop-blur rounded-full flex items-center justify-center"><Icon size={20} className="text-white" fill="white" /></div>
+              <span className="text-white text-xs drop-shadow-md">{count}</span>
             </div>
-            
-            <div className="w-full aspect-[16/9]"></div> 
-            
-            <div className="p-3 flex justify-between items-center border-t border-zinc-200">
-              <div className="flex flex-col">
-                 <span className="text-xs font-bold text-[#0a66c2] line-clamp-1">Descubre el futuro B2B</span>
-                 <span className="text-[10px] text-zinc-500">etheragent.com</span>
-              </div>
-            </div>
-            <div className="px-4 py-2 flex justify-between border-t border-zinc-200">
-               <span className="text-xs text-zinc-600 font-bold flex items-center gap-1"><Heart size={14} className="text-zinc-500" /> Recomendar</span>
-               <span className="text-xs text-zinc-600 font-bold flex items-center gap-1"><MessageCircle size={14} className="text-zinc-500" /> Comentar</span>
-            </div>
-         </div>
+          ))}
+        </div>
       </div>
     </div>
   );
-
-  const renderUIOverlay = () => {
-    if (!currentAssetUrl) return null;
-    
-    if (mediaType === 'video') {
-      if (videoFormat === 'reel') return <TikTokReelOverlay />;
-      if (videoFormat === 'story') return <InstagramStoryOverlay />;
-      if (videoFormat === 'feed') return <InstagramPostOverlay />;
-    }
-    
-    if (mediaType === 'image') {
-      if (imageFormat === 'story') return <InstagramStoryOverlay />;
-      if (imageFormat === 'post') return <InstagramPostOverlay />;
-      if (imageFormat === 'banner') return <LinkedInBannerOverlay />;
-    }
-    
-    return null;
-  };
 
   return (
     <div className="flex flex-col xl:flex-row min-h-screen w-full bg-[#050505] text-white p-3 sm:p-4 md:p-8 gap-4 sm:gap-8 pb-32 overflow-x-hidden overflow-y-auto">
-      
+
+      {/* ── LEFT PANEL: Structured Prompt Display ── */}
       <div className="flex-1 flex flex-col max-w-3xl">
         <header className="flex items-center justify-between border-b border-white/10 pb-6 mb-6">
           <div className="flex items-center gap-4">
             <div className="relative w-14 h-14 rounded-full border-2 border-emerald-500/50 flex items-center justify-center bg-zinc-900">
-               <span className="font-black text-2xl text-white">V</span>
+              <span className="font-black text-2xl text-white">V</span>
             </div>
             <div>
               <h2 className="text-2xl font-bold">Valeria M.</h2>
               <p className="text-emerald-500 font-mono text-xs tracking-widest uppercase">Lead Growth Hacker • Active Session</p>
             </div>
           </div>
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-400 uppercase tracking-widest">
+              {data.detected_sector}
+            </span>
+            <span className="text-zinc-500 font-mono text-xs">{data.strategy_score}/100</span>
+          </div>
         </header>
 
-        <div className="flex-1 bg-[#0a0a0c] border border-white/5 rounded-3xl p-8 flex flex-col relative shadow-2xl">
-          <div className="flex items-center gap-2 mb-8">
-            <Sparkles size={16} className="text-emerald-500" />
-            <span className="text-emerald-500 text-[10px] font-mono tracking-widest uppercase">Nodo: Viral Dynamics</span>
+        <div className="flex-1 bg-[#0a0a0c] border border-white/5 rounded-3xl p-6 md:p-8 flex flex-col relative shadow-2xl">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <Sparkles size={16} className="text-emerald-500" />
+              <span className="text-emerald-500 text-[10px] font-mono tracking-widest uppercase">Campaña: {new URL(campaign.target_url).hostname}</span>
+            </div>
+            {currentAsset && (
+              <button
+                onClick={handleCopyMaster}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold rounded-xl transition-all active:scale-95 shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+              >
+                <Clapperboard size={14} /> Copiar Prompt Maestro
+              </button>
+            )}
           </div>
 
-          <AnimatePresence>
-            {chatMessages.map((msg, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`bg-zinc-900/50 backdrop-blur-md border border-white/10 p-6 rounded-2xl ${msg.role === 'user' ? 'rounded-tr-sm w-[85%] self-end mb-6 border-emerald-500/20' : 'rounded-tl-sm w-[90%] mb-6'} ${msg.typing ? 'border-emerald-500/30' : ''}`}
-              >
-                {msg.role === 'assistant' && msg.content.includes('PAVO') ? (
-                  <>
-                    <p className="text-zinc-300 text-sm font-medium mb-3 flex items-center gap-2">
-                      <Sparkles size={14} className="text-emerald-500" />
-                      Transcripción y Análisis de Activo
-                    </p>
-                    <div className="p-2 sm:p-3 bg-black/60 border border-emerald-500/20 rounded-lg font-mono text-[10px] sm:text-xs text-emerald-400 leading-relaxed whitespace-pre-wrap break-words overflow-wrap-anywhere">
-                      {msg.content.replace('🎙️ Analizando activo crudo... Extrayendo transcripción del audio:\n\n', '')}
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-base text-zinc-300 leading-relaxed whitespace-pre-wrap">
-                    {msg.content}
-                    {msg.typing && <span className="inline-flex ml-1"><span className="animate-pulse">▊</span></span>}
-                  </p>
-                )}
-              </motion.div>
-            ))}
-          </AnimatePresence>
+          {/* Format Tabs */}
+          {data.assets && data.assets.length > 0 && (
+            <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
+              <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest shrink-0">Formatos:</span>
+              {data.assets.map((asset: CampaignAsset, i: number) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveAssetIndex(i)}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-mono uppercase transition-all active:scale-95 shrink-0 ${
+                    activeAssetIndex === i
+                      ? 'bg-emerald-500 text-black font-bold shadow-[0_0_15px_rgba(16,185,129,0.3)]'
+                      : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700 border border-white/5'
+                  }`}
+                >
+                  {asset.type} ({asset.duration}s)
+                </button>
+              ))}
+            </div>
+          )}
 
-          {demoState === 'idle' && chatMessages.length === 0 && (
-            <>
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-zinc-900/50 backdrop-blur-md border border-white/10 p-6 rounded-2xl rounded-tl-sm w-[90%] mb-6"
-              >
-                <p className="text-zinc-300 text-sm font-medium mb-3 flex items-center gap-2">
-                  <Sparkles size={14} className="text-emerald-500" />
-                  Transcripción y Análisis de Activo
-                </p>
-                <div className="p-2 sm:p-3 bg-black/60 border border-emerald-500/20 rounded-lg font-mono text-[10px] sm:text-xs text-emerald-400 leading-relaxed whitespace-pre-wrap break-words overflow-wrap-anywhere">
-                  PAVO 1: 'Hermano... mi agencia de marketing me está desplumando.'
-                  PAVO 2: 'Eso es porque sigues contratando humanos, Roberto.'
-                  PAVO 1: 'Yo los despedí a todos ayer. Ahora uso EtherAgent.'
-                  PAVO 2: 'Resultados puros. Cero excusas. Salud.'
+          {/* Marketing Angles */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-zinc-900/50 backdrop-blur-md border border-white/10 p-5 rounded-2xl rounded-tl-sm w-full mb-5">
+            <p className="text-zinc-300 text-sm font-medium mb-3 flex items-center gap-2">
+              <Sparkles size={14} className="text-emerald-500" /> Ángulos de Marketing
+            </p>
+            <div className="p-3 bg-black/60 border border-emerald-500/20 rounded-lg font-mono text-xs text-emerald-400 leading-relaxed whitespace-pre-wrap">
+              {data.angles?.map((angle: string, i: number) => `${i + 1}. ${angle}`).join('\n') || 'Sin ángulos detectados'}
+            </div>
+          </motion.div>
+
+          {/* Structured Visual Description */}
+          {currentAsset && sections.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3 mb-5">
+              {sections.map((section, i) => (
+                <div
+                  key={i}
+                  className={`border-l-4 ${sectionColors[sectionLabels[section.label]] || 'border-l-zinc-600 bg-zinc-900/30'} rounded-r-xl p-4`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`text-[10px] font-mono font-bold uppercase tracking-widest ${
+                      section.label === 'HOOK' ? 'text-emerald-400' :
+                      section.label === 'DESARROLLO' ? 'text-indigo-400' : 'text-amber-400'
+                    }`}>
+                      {sectionLabels[section.label] || section.label}
+                    </span>
+                    <span className="text-[9px] font-mono text-zinc-600">({section.time})</span>
+                  </div>
+                  {section.lines.map((line, j) => {
+                    const visualMatch = line.match(/^-\s*(?:🎥\s*)?Visual:\s*(.+)/i);
+                    const textMatch = line.match(/^-\s*(?:✏️\s*)?Texto(?:\s*en\s*pantalla)?:\s*(?:\[)?(.+?)(?:\])?$/i);
+                    const sfxMatch = line.match(/^-\s*(?:🔊\s*)?SFX:\s*(.+)/i);
+                    const voiceoverMatch = line.match(/^-\s*(?:🎙️\s*)?Voiceover:\s*"(.+)"\s*$/i);
+                    const musicMatch = line.match(/^-\s*(?:🎵\s*)?Music:\s*(.+)/i);
+                    const ctaMatch = line.match(/^-\s*(?:👉\s*)?CTA:\s*(.+)/i);
+                    const hookMatch = line.match(/^-\s*Hook:\s*(.+)/i);
+
+                    if (visualMatch) {
+                      return (
+                        <p key={j} className="text-xs text-zinc-200 leading-relaxed mb-1.5 pl-0">
+                          <span className="text-emerald-500 font-mono text-[10px] uppercase tracking-wider mr-2">🎬 Visual:</span>
+                          {visualMatch[1]}
+                        </p>
+                      );
+                    }
+                    if (textMatch) {
+                      return (
+                        <p key={j} className="text-xs text-indigo-300 leading-relaxed mb-1.5 pl-0">
+                          <span className="text-indigo-400 font-mono text-[10px] uppercase tracking-wider mr-2">📝 Texto:</span>
+                          "{textMatch[1]}"
+                        </p>
+                      );
+                    }
+                    if (sfxMatch) {
+                      return (
+                        <p key={j} className="text-xs text-amber-300/80 leading-relaxed mb-1.5 pl-0">
+                          <span className="text-amber-400 font-mono text-[10px] uppercase tracking-wider mr-2">🔊 SFX:</span>
+                          {sfxMatch[1]}
+                        </p>
+                      );
+                    }
+                    if (voiceoverMatch) {
+                      return (
+                        <p key={j} className="text-xs text-zinc-300 italic leading-relaxed mb-1.5 pl-0 border-l-2 border-zinc-700 pl-3 ml-1">
+                          <span className="text-zinc-500 font-mono text-[9px] uppercase tracking-wider block mb-0.5">🎙️ Voiceover</span>
+                          "{voiceoverMatch[1]}"
+                        </p>
+                      );
+                    }
+                    if (ctaMatch) {
+                      return (
+                        <p key={j} className="text-xs text-emerald-300 font-bold leading-relaxed mb-1.5 pl-0">
+                          <span className="text-emerald-400 font-mono text-[10px] uppercase tracking-wider mr-2">👉 CTA:</span>
+                          {ctaMatch[1]}
+                        </p>
+                      );
+                    }
+                    if (musicMatch) {
+                      return (
+                        <p key={j} className="text-xs text-violet-300/80 leading-relaxed mb-1.5 pl-0">
+                          <span className="text-violet-400 font-mono text-[10px] uppercase tracking-wider mr-2">🎵 Música:</span>
+                          {musicMatch[1]}
+                        </p>
+                      );
+                    }
+                    if (hookMatch) {
+                      return (
+                        <p key={j} className="text-xs text-pink-300/80 font-medium leading-relaxed mb-1.5 pl-0">
+                          <span className="text-pink-400 font-mono text-[10px] uppercase tracking-wider mr-2">🪝 Hook:</span>
+                          {hookMatch[1]}
+                        </p>
+                      );
+                    }
+                    if (line.trim()) {
+                      return (
+                        <p key={j} className="text-xs text-zinc-400 leading-relaxed mb-1 pl-0">
+                          {line}
+                        </p>
+                      );
+                    }
+                    return <div key={j} className="h-1" />;
+                  })}
                 </div>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-emerald-900/20 border border-emerald-500/20 p-6 rounded-2xl rounded-tr-sm w-[85%] self-end mb-6"
-              >
-                <p className="text-base text-emerald-100 leading-relaxed">
-                  ⚡ Adaptando para TikTok/Reels. Aplicando cortes de alta retención, inyectando música Phonk de fondo y generando subtítulos con estética 'Apple Noir'.
-                </p>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="bg-zinc-900/50 border border-emerald-500/30 p-6 rounded-2xl rounded-tl-sm w-[90%] mb-6"
-              >
-                <p className="text-base text-white leading-relaxed font-medium">
-                  ✅ Campaña Cero lista. Despliegue orgánico optimizado. Dale Play al activo a tu derecha.
-                </p>
-              </motion.div>
-            </>
+              ))}
+            </motion.div>
           )}
 
-          {chatStep === 2 && demoState === 'finished' && (
-             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-zinc-900/50 border border-emerald-500/30 p-6 rounded-2xl rounded-tl-sm w-[90%] mb-6">
-               <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />
-               <p className="text-base text-white leading-relaxed font-medium">
-                 Kinesia y parámetros visuales nativos compilados. Verifica la previsualización en el dispositivo a tu derecha.
-               </p>
-             </motion.div>
+          {/* Full Prompt Details */}
+          {currentAsset && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-zinc-900/50 border border-white/10 p-5 rounded-2xl rounded-tl-sm w-full mb-5">
+              <div className="space-y-4">
+                <div>
+                  <h5 className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest mb-2 flex items-center gap-2"><Zap size={10} /> Hook ({currentAsset.duration}s)</h5>
+                  <p className="text-sm text-white italic font-medium">"{currentAsset.hook}"</p>
+                </div>
+                <div>
+                  <h5 className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-2">Voiceover Script</h5>
+                  <p className="text-xs text-zinc-300 leading-relaxed font-serif italic">{currentAsset.voiceover_script}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <h5 className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">🎵 Música</h5>
+                    <p className="text-xs text-zinc-400">{currentAsset.music_background}</p>
+                  </div>
+                  <div>
+                    <h5 className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">🔊 SFX</h5>
+                    <p className="text-xs text-zinc-400">{currentAsset.sound_effects}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <h5 className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">Tono Emocional</h5>
+                    <p className="text-xs text-zinc-400 capitalize">{currentAsset.emotional_tone}</p>
+                  </div>
+                  <div>
+                    <h5 className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">Pacing</h5>
+                    <p className="text-xs text-zinc-400">{currentAsset.pacing_notes}</p>
+                  </div>
+                </div>
+                {currentAsset.on_screen_text.length > 0 && (
+                  <div>
+                    <h5 className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">Textos en pantalla</h5>
+                    <div className="flex flex-wrap gap-1.5">
+                      {currentAsset.on_screen_text.map((t, i) => (
+                        <span key={i} className="px-2 py-0.5 bg-black/40 border border-white/10 rounded text-[10px] text-indigo-300 font-mono">"{t}"</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <h5 className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">CTA</h5>
+                  <p className="text-xs text-emerald-400 font-semibold">{currentAsset.call_to_action}</p>
+                </div>
+              </div>
+            </motion.div>
           )}
 
-          <div className="mt-auto grid grid-cols-2 gap-4">
-            <button onClick={runDemoChoreography} disabled={demoState !== 'idle'} className="bg-[#111] hover:bg-zinc-800 border border-white/5 p-4 rounded-xl flex items-center justify-center gap-3 text-sm font-bold text-zinc-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-              {demoState !== 'idle' ? <Loader2 size={18} className="text-emerald-500 animate-spin" /> : <Sparkles size={18} className="text-emerald-500" />} {demoState === 'idle' ? 'Iniciar Demo' : 'Demo Activa...'}
-            </button>
-            <button onClick={handleCompile} disabled={isCompiling || chatStep === 2} className="bg-[#111] hover:bg-zinc-800 border border-white/5 p-4 rounded-xl flex items-center justify-center gap-3 text-sm font-bold text-zinc-300 transition-colors">
-              {isCompiling ? <Loader2 size={18} className="text-emerald-500 animate-spin" /> : <Zap size={18} className="text-emerald-500" />} Compilar Assets
-            </button>
-          </div>
+          {/* Copy buttons */}
+          {currentAsset && (
+            <div className="flex gap-2">
+              <button onClick={handleCopyMaster} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition-all active:scale-95">
+                <Clapperboard size={14} /> Copiar Prompt Maestro
+              </button>
+              <button onClick={() => handleCopy(currentAsset.visual_description, 'Prompt Visual')} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white hover:bg-white/10 transition-all active:scale-95">
+                <Eye size={14} className="text-emerald-400" /> Copiar Visual
+              </button>
+            </div>
+          )}
+
+          {/* Audience + Creative Rationale */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-emerald-900/20 border border-emerald-500/20 p-5 rounded-2xl rounded-tr-sm w-full mt-5">
+            <p className="text-sm text-emerald-100 leading-relaxed">
+              ⚡ {data.creative_rationale?.substring(0, 250) || 'Estrategia creativa procesada.'}...
+            </p>
+          </motion.div>
+
+          {data.audience && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="bg-zinc-900/50 border border-white/10 p-5 rounded-2xl rounded-tl-sm w-full mt-4">
+              <p className="text-zinc-300 text-sm font-medium mb-2 flex items-center gap-2">
+                <UserCircle2 size={14} className="text-indigo-400" /> Target: {data.audience.persona}
+              </p>
+              <p className="text-xs text-zinc-400 italic leading-relaxed">"{data.audience.psychographics}"</p>
+            </motion.div>
+          )}
         </div>
       </div>
 
+      {/* ── RIGHT PANEL: Phone Preview + Upload ── */}
       <div className="w-full xl:w-[420px] shrink-0 flex flex-col items-center pt-2">
-        
-        {demoState !== 'idle' && demoState !== 'finished' && (
-          <button 
-            onClick={handleSkipDemo}
-            className="fixed top-6 right-6 z-[9999] px-6 py-3 bg-red-600/90 backdrop-blur-xl border-2 border-red-400 rounded-full text-sm font-bold text-white shadow-[0_0_25px_rgba(220,38,38,0.5)] hover:scale-110 hover:bg-red-500 transition-all flex items-center gap-2 cursor-pointer animate-pulse"
-            style={{ zIndex: 99999 }}
-          >
-            ⏭ SALTAR DEMO
-          </button>
-        )}
 
         <div className="w-[280px] sm:w-[300px] md:w-[340px] flex p-1 bg-[#111] rounded-xl border border-white/10 mb-4">
           <button onClick={() => setMediaType('video')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 min-h-[44px] text-xs font-bold rounded-lg transition-all active:scale-95 ${mediaType === 'video' ? 'bg-emerald-500/20 text-emerald-500 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>
-            <Video size={14} /> VIDEO VECTORS
+            <Video size={14} /> VIDEO
           </button>
           <button onClick={() => setMediaType('image')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 min-h-[44px] text-xs font-bold rounded-lg transition-all active:scale-95 ${mediaType === 'image' ? 'bg-emerald-500/20 text-emerald-500 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>
-            <ImageIcon size={14} /> STATIC VECTORS
+            <ImageIcon size={14} /> IMAGE
           </button>
         </div>
 
-        <div className="w-[280px] sm:w-[300px] md:w-[340px] flex justify-between items-center mb-6">
-          <div className="flex gap-1.5 sm:gap-2">
-            {mediaType === 'video' ? (
-              <>
-                <button onClick={() => setVideoFormat('reel')} className={`px-3 py-2 sm:py-1.5 min-h-[40px] sm:min-h-[32px] rounded-md text-[10px] sm:text-[10px] font-mono uppercase transition-all active:scale-95 ${videoFormat === 'reel' ? 'bg-emerald-500 text-black font-bold' : 'bg-[#111] text-zinc-500 border border-white/5 hover:bg-zinc-800'}`}>Reel</button>
-                <button onClick={() => setVideoFormat('feed')} className={`px-3 py-2 sm:py-1.5 min-h-[40px] sm:min-h-[32px] rounded-md text-[10px] sm:text-[10px] font-mono uppercase transition-all active:scale-95 ${videoFormat === 'feed' ? 'bg-emerald-500 text-black font-bold' : 'bg-[#111] text-zinc-500 border border-white/5 hover:bg-zinc-800'}`}>Feed</button>
-                <button onClick={() => setVideoFormat('story')} className={`px-3 py-2 sm:py-1.5 min-h-[40px] sm:min-h-[32px] rounded-md text-[10px] sm:text-[10px] font-mono uppercase transition-all active:scale-95 ${videoFormat === 'story' ? 'bg-emerald-500 text-black font-bold' : 'bg-[#111] text-zinc-500 border border-white/5 hover:bg-zinc-800'}`}>Story</button>
-              </>
-            ) : (
-              <>
-                <button onClick={() => setImageFormat('post')} className={`px-3 py-2 sm:py-1.5 min-h-[40px] sm:min-h-[32px] rounded-md text-[10px] sm:text-[10px] font-mono uppercase transition-all active:scale-95 ${imageFormat === 'post' ? 'bg-emerald-500 text-black font-bold' : 'bg-[#111] text-zinc-500 border border-white/5 hover:bg-zinc-800'}`}>Post</button>
-                <button onClick={() => setImageFormat('story')} className={`px-3 py-2 sm:py-1.5 min-h-[40px] sm:min-h-[32px] rounded-md text-[10px] sm:text-[10px] font-mono uppercase transition-all active:scale-95 ${imageFormat === 'story' ? 'bg-emerald-500 text-black font-bold' : 'bg-[#111] text-zinc-500 border border-white/5 hover:bg-zinc-800'}`}>Story</button>
-                <button onClick={() => setImageFormat('banner')} className={`px-3 py-2 sm:py-1.5 min-h-[40px] sm:min-h-[32px] rounded-md text-[10px] sm:text-[10px] font-mono uppercase transition-all active:scale-95 ${imageFormat === 'banner' ? 'bg-emerald-500 text-black font-bold' : 'bg-[#111] text-zinc-500 border border-white/5 hover:bg-zinc-800'}`}>Banner</button>
-              </>
-            )}
-          </div>
-          
-          {user?.email === 'davicho4522@gmail.com' && (
-          <div className="relative">
-            <input type="file" accept={mediaType === 'video' ? "video/*" : "image/*"} onChange={handleFileUpload} disabled={uploading} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-            <button className="flex items-center justify-center bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 w-8 h-8 rounded-lg hover:bg-emerald-500/20 transition-colors">
-              {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+        <div className="w-[280px] sm:w-[300px] md:w-[340px] flex gap-1.5 mb-4">
+          {(['reel', 'feed', 'story'] as const).map(fmt => (
+            <button key={fmt} onClick={() => setVideoFormat(fmt)} className={`px-3 py-2 min-h-[40px] sm:min-h-[32px] rounded-md text-[10px] font-mono uppercase transition-all active:scale-95 ${videoFormat === fmt ? 'bg-emerald-500 text-black font-bold' : 'bg-[#111] text-zinc-500 border border-white/5 hover:bg-zinc-800'}`}>
+              {fmt}
             </button>
-          </div>
-          )}
+          ))}
         </div>
 
+        {/* Phone Frame with Video Player */}
         <div className="relative w-[280px] sm:w-[300px] md:w-[340px] h-[560px] sm:h-[640px] md:h-[720px] bg-black border-[6px] sm:border-[8px] border-[#1c1c1e] rounded-[2.5rem] sm:rounded-[3.5rem] shadow-[0_0_50px_rgba(16,185,129,0.15)] overflow-hidden flex flex-col shrink-0">
-          
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-24 h-7 bg-black rounded-full z-50"></div>
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-24 h-7 bg-black rounded-full z-50" />
 
-          <AnimatePresence>
-            {mobileView === 'rendering' && (
-              <motion.div 
-                initial={{ opacity: 0 }} 
-                animate={{ opacity: 1 }} 
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950 z-50 rounded-[2.5rem]"
-              >
-                <div className="relative">
-                  <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full animate-pulse"></div>
-                  <Loader2 className="w-12 h-12 text-emerald-400 animate-spin relative z-10" />
-                </div>
-                <p className="mt-6 text-emerald-400/80 font-mono text-xs tracking-[0.3em] uppercase animate-pulse">
-                  Procesando Neural
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {(mobileView === 'idle' || mobileView === 'final_deployed') && (
-            <div className="flex-1 relative w-full h-full bg-black flex items-center justify-center overflow-hidden">
-              {loading ? (
-                <Loader2 className="animate-spin text-emerald-500" size={40} />
-              ) : currentAssetUrl ? (
-                <>
-                  {mediaType === 'video' ? (
-                    <motion.div 
-                      key="view-final"
-                      initial={{ opacity: 0 }} 
-                      animate={{ opacity: 1 }}
-                      className={`relative mx-auto overflow-hidden shadow-2xl transition-all duration-700 ease-[cubic-bezier(0.87,0,0.13,1)] ${
-                        videoFormat === 'reel' || videoFormat === 'story'
-                          ? 'w-[300px] sm:w-[320px] md:w-[340px] aspect-[9/19] rounded-[2.5rem] sm:rounded-[3rem] border-[6px] sm:border-[8px] border-zinc-900 bg-black'
-                          : 'w-full max-w-[800px] aspect-video md:aspect-[4/3] rounded-2xl border border-zinc-800'
-                      }`}
+          <div className="flex-1 relative w-full h-full bg-gradient-to-br from-zinc-900 to-black flex items-center justify-center overflow-hidden">
+            <AnimatePresence mode="wait">
+              {currentAsset?.video_url ? (
+                <div key="video-container" className="absolute inset-0 w-full h-full">
+                  {!videoStarted && (currentAsset.thumbnail_url || currentAsset.video_url) && (
+                    <motion.div
+                      initial={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.8 }}
+                      className="absolute inset-0 z-20"
                     >
-                      <video 
-                        ref={videoRef}
-                        src={currentAssetUrl} 
-                        muted={!hasUserInteracted}
-                        playsInline
-                        className="absolute inset-0 w-full h-full object-cover z-0"
+                      <img 
+                        src={currentAsset.thumbnail_url || currentAsset.video_url} 
+                        className="w-full h-full object-cover"
+                        alt="Video thumbnail"
+                        onError={(e) => (e.currentTarget.src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=1000')}
                       />
-                        <div 
-                          className="absolute inset-0 flex items-center justify-center z-20 cursor-pointer"
-                          onClick={() => {
-                            setHasUserInteracted(true);
-                            if (videoRef.current) {
-                              videoRef.current.muted = false;
-                              videoRef.current.play();
-                            }
-                          }}
+                      <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => setVideoStarted(true)}
+                          className="w-20 h-20 rounded-full bg-emerald-500/80 backdrop-blur-md flex items-center justify-center text-black shadow-[0_0_30px_rgba(16,185,129,0.5)]"
                         >
-                          {!hasUserInteracted && (
-                            <div className="relative group">
-                              <div className="absolute inset-0 rounded-full bg-emerald-500/40 animate-ping group-hover:bg-emerald-500/60 transition-all duration-500"></div>
-                              <div className="relative w-24 h-24 flex items-center justify-center rounded-full bg-emerald-500/30 backdrop-blur-xl border-2 border-emerald-400 text-emerald-400 shadow-[0_0_50px_rgba(16,185,129,0.6)] transition-transform duration-300 group-hover:scale-110 active:scale-95">
-                                <Play fill="currentColor" className="w-10 h-10 ml-1.5" />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        <div className="absolute top-8 left-0 w-full flex justify-center z-30 pointer-events-none">
-                          <span className="px-4 py-1.5 bg-emerald-500/20 backdrop-blur-md border border-emerald-400/30 rounded-full text-[10px] text-emerald-300 font-mono tracking-widest uppercase shadow-lg">
-                            Asset Listo
-                          </span>
-                        </div>
-                      </motion.div>
-                  ) : (
-                    <img src={currentAssetUrl} alt="Social Asset" className={`absolute inset-0 w-full h-full z-10 object-contain bg-black`} />
+                          <Play size={32} className="ml-1" />
+                        </motion.button>
+                      </div>
+                    </motion.div>
                   )}
+                  <video
+                    key={currentAsset.video_url}
+                    src={currentAsset.video_url}
+                    className="absolute inset-0 w-full h-full object-cover z-10"
+                    controls={videoStarted}
+                    autoPlay={videoStarted}
+                    onPlay={() => setVideoStarted(true)}
+                    loop
+                    playsInline
+                  />
 
-                  <AnimatePresence>
-                    {!hasUserInteracted && (
-                      <motion.div 
-                        initial={{ opacity: 0, scale: 0.8 }} 
-                        animate={{ opacity: 1, scale: 1 }} 
-                        exit={{ opacity: 0, scale: 1.5, filter: 'blur(10px)' }}
-                        className="absolute inset-0 flex items-center justify-center z-30 cursor-pointer"
-                        onClick={() => {
-                          setHasUserInteracted(true);
-                          if (videoRef.current) {
-                            videoRef.current.muted = false;
-                            videoRef.current.currentTime = 0;
-                            videoRef.current.play();
-                          }
-                        }}
-                      >
-                        <div className="relative group">
-                          <div className="absolute inset-0 rounded-full bg-emerald-500/50 animate-ping group-hover:bg-emerald-400/60" />
-                          <div className="relative w-24 h-24 flex items-center justify-center rounded-full bg-emerald-500/30 backdrop-blur-xl border-2 border-emerald-400 text-emerald-400 shadow-[0_0_50px_rgba(16,185,129,0.6)] transition-transform hover:scale-110 active:scale-95">
-                            <Play fill="currentColor" className="w-10 h-10 ml-1.5" />
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  {hasUserInteracted && (
-                    <div className="absolute bottom-24 left-4 flex flex-col gap-2 z-40 pointer-events-none">
-                      <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }} className="px-3 py-1.5 bg-black/60 backdrop-blur-md border border-zinc-800 rounded-lg flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[10px] text-white font-mono">TikTok: LIVE</span>
-                      </motion.div>
-                      <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 1.5 }} className="px-3 py-1.5 bg-black/60 backdrop-blur-md border border-zinc-800 rounded-lg flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" style={{ animationDelay: '0.5s' }} />
-                        <span className="text-[10px] text-white font-mono">IG Reels: LIVE</span>
-                      </motion.div>
-                      <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 2.5 }} className="px-3 py-1.5 bg-black/60 backdrop-blur-md border border-zinc-800 rounded-lg flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" style={{ animationDelay: '1s' }} />
-                        <span className="text-[10px] text-white font-mono">YT Shorts: LIVE</span>
-                      </motion.div>
+                  {/* ── On-Screen Text Overlays (Shorts/Reels Style) ── */}
+                  {videoStarted && currentAsset.on_screen_text.length > 0 && (
+                    <div className="absolute inset-0 z-20 pointer-events-none flex flex-col items-center justify-center">
+                      <AnimatePresence>
+                        {currentAsset.on_screen_text.map((text, i) => {
+                          const positions = [
+                            { top: '18%' },
+                            { top: '45%' },
+                            { top: '68%' },
+                          ];
+                          const pos = positions[i] || { top: `${35 + i * 15}%` };
+                          return (
+                            <motion.div
+                              key={`ost-${i}`}
+                              initial={{ opacity: 0, y: 40, scale: 0.85 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: -30, scale: 0.85 }}
+                              transition={{
+                                delay: i * 2.5,
+                                duration: 0.6,
+                                ease: [0.16, 1, 0.3, 1],
+                              }}
+                              className="absolute w-full flex justify-center px-6"
+                              style={pos}
+                            >
+                              <span
+                                className="inline-block bg-zinc-900/60 backdrop-blur-md border border-white/10 px-5 py-3 rounded-xl text-white font-black text-xl sm:text-2xl md:text-3xl uppercase tracking-tight leading-none shadow-2xl text-center max-w-[90%]"
+                                style={{ textShadow: '0 2px 12px rgba(0,0,0,0.9), 0 0 40px rgba(0,0,0,0.5)' }}
+                              >
+                                {text}
+                              </span>
+                            </motion.div>
+                          );
+                        })}
+                      </AnimatePresence>
                     </div>
                   )}
-                  
-                  {renderUIOverlay()}
-                </>
-              ) : campaignAsset ? (
-                <motion.div 
-                  initial={{ opacity: 0 }} 
-                  animate={{ opacity: 1 }}
-                  className="relative w-full h-full"
-                >
-                  <img 
-                    src={campaignAsset.imageUrl} 
-                    alt="Social Asset" 
-                    className="absolute inset-0 w-full h-full object-cover z-0"
-                  />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-6 z-10">
-                    <p className="text-white text-sm font-medium">"{campaignAsset.copy}"</p>
-                  </div>
-                  <div className="absolute inset-0 flex items-center justify-center z-20">
-                    <button 
-                      onClick={() => {
-                        if (!balance.isInfinite && balance.computeTokens <= 0) {
-                          navigate('/dashboard/subscription');
-                        } else {
-                          console.log('Premium campaign play action');
-                        }
-                      }}
-                      className="w-20 h-20 rounded-full bg-emerald-500/20 backdrop-blur-xl border border-emerald-400/50 flex items-center justify-center text-emerald-400 group hover:scale-110 transition-transform"
-                    >
-                      <Play className="w-8 h-8 ml-1 group-hover:animate-pulse" fill="currentColor" />
-                    </button>
-                  </div>
-                  <div className="absolute top-8 left-0 w-full flex justify-center z-30 pointer-events-none">
-                    <span className="px-4 py-1.5 bg-emerald-500/20 backdrop-blur-md border border-emerald-400/30 rounded-full text-[10px] text-emerald-300 font-mono tracking-widest uppercase shadow-lg">
-                      Campaña Activa
-                    </span>
-                  </div>
-                </motion.div>
+                </div>
               ) : (
                 <motion.div 
-                  initial={{ opacity: 0 }} 
+                  key="placeholder"
+                  initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className={`relative mx-auto overflow-hidden shadow-2xl transition-all duration-700 ease-[cubic-bezier(0.87,0,0.13,1)] ${
-                    videoFormat === 'reel' || videoFormat === 'story'
-                      ? 'w-[300px] sm:w-[320px] md:w-[340px] aspect-[9/19] rounded-[2.5rem] sm:rounded-[3rem] border-[6px] sm:border-[8px] border-zinc-900 bg-black'
-                      : 'w-full max-w-[800px] aspect-video md:aspect-[4/3] rounded-2xl border border-zinc-800'
-                  }`}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center"
                 >
-                  <video 
-                    ref={videoRef}
-                    src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
-                    muted
-                    playsInline
-                    className="absolute inset-0 w-full h-full object-cover z-0"
-                  />
-                    <div 
-                      className="absolute inset-0 flex items-center justify-center z-20 cursor-pointer"
-                      onClick={() => {
-                        setHasUserInteracted(true);
-                        if (videoRef.current) {
-                          videoRef.current.muted = false;
-                          videoRef.current.play();
-                        }
-                      }}
-                    >
-                      <div className="relative group">
-                        <div className="absolute inset-0 rounded-full bg-emerald-500/40 animate-ping group-hover:bg-emerald-500/60 transition-all duration-500"></div>
-                        <div className="relative w-24 h-24 flex items-center justify-center rounded-full bg-emerald-500/30 backdrop-blur-xl border-2 border-emerald-400 text-emerald-400 shadow-[0_0_50px_rgba(16,185,129,0.6)] transition-transform duration-300 group-hover:scale-110 active:scale-95">
-                          <Play fill="currentColor" className="w-10 h-10 ml-1.5" />
-                        </div>
+                  <div className="absolute inset-0 opacity-30">
+                    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-emerald-500/20 via-indigo-500/10 to-transparent" />
+                    <div className="absolute bottom-0 right-0 w-2/3 h-2/3 bg-gradient-to-tl from-indigo-500/20 to-transparent blur-2xl" />
+                  </div>
+
+                  <div className="relative z-10 flex flex-col items-center gap-4 max-w-[80%]">
+                    <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-2">
+                      <Sparkles className="w-8 h-8 text-emerald-400" />
+                    </div>
+
+                    {currentAsset?.on_screen_text?.[0] && (
+                      <motion.div
+                        key={activeAssetIndex}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-white text-black px-5 py-2.5 rounded-none font-black text-lg uppercase tracking-tighter italic transform -skew-x-6 shadow-[6px_6px_0px_rgba(16,185,129,0.5)] mb-3"
+                      >
+                        {currentAsset.on_screen_text[0]}
+                      </motion.div>
+                    )}
+
+                    <p className="text-xs text-zinc-400 leading-relaxed italic line-clamp-4">
+                      {currentAsset?.visual_description?.substring(0, 120) || 'Simulación visual de campaña'}...
+                    </p>
+
+                    {currentAsset?.call_to_action && (
+                      <div className="mt-3 px-4 py-2 bg-emerald-500/20 border border-emerald-500/30 rounded-full">
+                        <span className="text-emerald-400 text-[10px] font-bold uppercase tracking-widest">{currentAsset.call_to_action}</span>
                       </div>
-                    </div>
-                    <div className="absolute top-8 left-0 w-full flex justify-center z-30 pointer-events-none">
-                      <span className="px-4 py-1.5 bg-emerald-500/20 backdrop-blur-md border border-emerald-400/30 rounded-full text-[10px] text-emerald-300 font-mono tracking-widest uppercase shadow-lg">
-                        Asset Listo
-                      </span>
-                    </div>
-                  </motion.div>
+                    )}
+                  </div>
+                </motion.div>
               )}
+            </AnimatePresence>
+
+            {videoFormat === 'reel' && !currentAsset?.video_url && <TikTokReelOverlay />}
+
+            {currentAsset?.video_url && (
+              <div className="absolute top-8 left-0 w-full flex justify-center z-30 pointer-events-none">
+                <span className="px-4 py-1.5 bg-emerald-500/20 backdrop-blur-md border border-emerald-400/30 rounded-full text-[10px] text-emerald-300 font-mono tracking-widest uppercase shadow-lg flex items-center gap-1.5">
+                  <CheckCircle2 size={10} /> Video Renderizado
+                </span>
+              </div>
+            )}
+
+            {!currentAsset?.video_url && (
+              <div className="absolute top-8 left-0 w-full flex justify-center z-30 pointer-events-none">
+                <span className="px-4 py-1.5 bg-emerald-500/20 backdrop-blur-md border border-emerald-400/30 rounded-full text-[10px] text-emerald-300 font-mono tracking-widest uppercase shadow-lg">
+                  Campaña Activa
+                </span>
+              </div>
+            )}
+
+            <div className="absolute bottom-24 left-4 flex flex-col gap-2 z-40 pointer-events-none">
+              {['TikTok', 'IG Reels', 'YT Shorts'].map((platform, i) => (
+                <motion.div key={platform} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 + i * 0.5 }} className="px-3 py-1.5 bg-black/60 backdrop-blur-md border border-zinc-800 rounded-lg flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" style={{ animationDelay: `${i * 0.5}s` }} />
+                  <span className="text-[10px] text-white font-mono">{platform}: LIVE</span>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── UPLOAD DROPZONE ── */}
+        <div
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onClick={() => fileInputRef.current?.click()}
+          className={`mt-4 w-[280px] sm:w-[300px] md:w-[340px] border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
+            dragOver
+              ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_30px_rgba(16,185,129,0.2)]'
+              : 'border-zinc-700 bg-zinc-900/40 hover:border-zinc-500 hover:bg-zinc-900/60'
+          }`}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="video/mp4,video/webm,video/quicktime"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          {uploading ? (
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 size={24} className="text-emerald-400 animate-spin" />
+              <span className="text-xs text-zinc-400 font-mono">Subiendo video...</span>
+            </div>
+          ) : currentAsset?.video_url ? (
+            <div className="flex flex-col items-center gap-2">
+              <CheckCircle2 size={24} className="text-emerald-500" />
+              <span className="text-xs text-emerald-400 font-mono">Video subido</span>
+              <span className="text-[10px] text-zinc-600">Click para reemplazar</span>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2">
+              <FileUp size={24} className="text-zinc-500 group-hover:text-zinc-300" />
+              <span className="text-xs text-zinc-400 font-mono">Sube tu MP4 renderizado</span>
+              <span className="text-[10px] text-zinc-600">Drag & drop o click para seleccionar</span>
             </div>
           )}
         </div>
 
-        <div className="mt-6 border-t border-white/10 pt-6 w-[280px] sm:w-[300px] md:w-[340px]">
-          <button 
-            onClick={() => {
-              if (!balance.isInfinite && balance.computeTokens <= 0) {
-                navigate('/dashboard/subscription');
-              } else {
-                console.log("Iniciando creación de campaña...");
-              }
-            }}
-            className="w-full relative group overflow-hidden rounded-xl p-[1px]"
-          >
-            <span className="absolute inset-0 bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500 rounded-xl opacity-70 group-hover:opacity-100 animate-pulse transition-opacity"></span>
-            <div className="relative px-6 py-4 bg-zinc-950 rounded-xl flex items-center justify-between transition-all group-hover:bg-zinc-900">
-              <div className="flex flex-col text-left">
-                <span className="text-white font-bold text-sm">Crear Campaña Premium</span>
-                <span className="text-zinc-500 text-[11px] font-mono">Requiere Compute Tokens</span>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/50 group-hover:scale-110 transition-transform">
-                <ArrowRight className="w-4 h-4 text-emerald-400" />
-              </div>
+        {/* SEO / Hashtags */}
+        {data.youtube_seo && (
+          <div className="mt-4 border-t border-white/10 pt-4 w-[280px] sm:w-[300px] md:w-[340px]">
+            <h4 className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-3">YouTube SEO</h4>
+            <p className="text-sm font-bold text-white mb-2 line-clamp-2">{data.youtube_seo.video_title}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {data.youtube_seo.hashtags?.map((tag: string) => (
+                <span key={tag} className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[9px] text-zinc-400">{tag}</span>
+              ))}
             </div>
-          </button>
-        </div>
+          </div>
+        )}
 
-        <button className={`mt-4 sm:mt-6 w-[280px] sm:w-[300px] md:w-[340px] py-3 sm:py-4 rounded-xl font-black font-mono text-xs sm:text-sm tracking-widest transition-all duration-300 ${chatStep === 2 ? 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-[0_0_30px_rgba(16,185,129,0.3)]' : 'bg-zinc-900 text-zinc-600 border border-white/5 cursor-not-allowed'}`}>
-          [ DEPLOY TO NETWORKS ]
+        <button
+          onClick={() => navigate('/dashboard/nexus-brain')}
+          className="mt-6 w-[280px] sm:w-[300px] md:w-[340px] relative group overflow-hidden rounded-xl p-[1px]"
+        >
+          <span className="absolute inset-0 bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500 rounded-xl opacity-70 group-hover:opacity-100 transition-opacity" />
+          <div className="relative px-6 py-4 bg-zinc-950 rounded-xl flex items-center justify-between transition-all group-hover:bg-zinc-900">
+            <div className="flex flex-col text-left">
+              <span className="text-white font-bold text-sm">Nueva Campaña</span>
+              <span className="text-zinc-500 text-[11px] font-mono">Volver al Nexus Brain</span>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/50 group-hover:scale-110 transition-transform">
+              <ArrowRight className="w-4 h-4 text-emerald-400" />
+            </div>
+          </div>
         </button>
       </div>
     </div>

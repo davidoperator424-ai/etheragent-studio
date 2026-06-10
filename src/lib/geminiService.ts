@@ -1,41 +1,49 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+import { useTokenStore } from "@/store/useTokenStore";
 
 export interface CampaignWorkspace {
-    valeria_chat: string;
-    marcus_chat: string;
-    viktor_chat: string;
-    visual_vectors: string; // El prompt para generar imágenes
+    mission_id: string;
+    hook: string;
+    narrative_body: string;
+    on_screen_text: string[];
+    call_to_action: string;
+    visual_description: string;
 }
 
 export async function generateWorkspaceCampaign(brandOrUrl: string): Promise<CampaignWorkspace | null> {
+    const { tokens } = useTokenStore.getState();
+    const GEMINI_API_KEY = tokens.gemini || import.meta.env.VITE_GEMINI_API_KEY;
+
     if (!GEMINI_API_KEY) {
-        console.warn("⚠️ VITE_GEMINI_API_KEY no encontrada. Agrega la variable en tu .env.");
+        console.warn("⚠️ GEMINI_API_KEY no encontrada. Configúrala en el Token Manager.");
         // Retornamos un Mock para que la app no se rompa mientras pones la llave
         return {
-            valeria_chat: "He detectado la esencia de la marca. El algoritmo predictivo indica que este gancho generará una retención del 87% en los primeros 3 segundos. ¿Autorizas la compilación del Bumper?",
-            marcus_chat: "He procesado la gráfica de Autoridad. El copy ataca el dolor de las agencias. El A/B test marca un CPA un 40% más bajo. ¿Desplegamos?",
-            viktor_chat: "Para esta marca, inyectaremos hologramas de alto impacto en el distrito financiero. Autoriza el despliegue urbano.",
-            visual_vectors: "Cinematic, high-end corporate cyberpunk, glowing neon, hyper-realistic, 8k resolution --ar 16:9"
+            mission_id: "CMP-884",
+            hook: "He detectado la esencia de la marca. El algoritmo predictivo indica que este gancho generará una retención del 87%.",
+            narrative_body: "He procesado la gráfica de Autoridad. El copy ataca el dolor de las agencias. El A/B test marca un CPA un 40% más bajo.",
+            on_screen_text: ["STOP SCROLLING", "ROI x10", "LINK IN BIO"],
+            call_to_action: "Solicita tu Demo",
+            visual_description: "Cinematic, high-end corporate cyberpunk, glowing neon, hyper-realistic, 8k resolution --ar 16:9"
         };
     }
 
     try {
         const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-        // Usamos gemini-2.5-flash porque es la versión más reciente y rápida disponible en tu API key
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        // Usamos gemini-2.0-flash para máximo rendimiento y latencia mínima
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-        const prompt = `Eres EtherAgent OS, una IA de marketing avanzado.
-    Analiza la siguiente marca, empresa o nicho: "${brandOrUrl}".
+        const prompt = `Eres el Director Creativo Supremo de EtherAgent OS. 
+    Tu objetivo es estructurar una narrativa de campaña B2B de alto impacto para: "${brandOrUrl}".
+    YA NO generamos guiones para voz artificial separada; ahora operamos con videos nativos.
     
-    Tu tarea es crear la estrategia base para esta campaña.
-    Responde ÚNICAMENTE en formato JSON válido con esta estructura exacta:
+    Tu respuesta debe ser UNICAMENTE un objeto JSON válido con esta estructura exacta:
     {
-      "valeria_chat": "Un diálogo corto, persuasivo y enérgico (como una Growth Hacker) proponiendo un video corto para TikTok sobre esta marca.",
-      "marcus_chat": "Un diálogo corto, serio y corporativo proponiendo un anuncio de LinkedIn enfocado en B2B o ROI para esta marca.",
-      "viktor_chat": "Un diálogo corto proponiendo una valla publicitaria 3D épica o en el metaverso para esta marca.",
-      "visual_vectors": "Un prompt detallado en inglés (estilo Midjourney) para generar la estética visual de esta campaña."
+      "mission_id": "Un ID único alfanumérico",
+      "hook": "Un gancho narrativo de 3 segundos para captar atención inmediata",
+      "narrative_body": "El cuerpo del mensaje persuasivo enfocado en ROI y dolor del cliente",
+      "on_screen_text": ["TEXTO 1", "TEXTO 2", "TEXTO 3"],
+      "call_to_action": "Una instrucción clara de cierre",
+      "visual_description": "Un prompt detallado en inglés para generar o seleccionar el video nativo ideal (especifica iluminación, encuadre, estilo cinemático)."
     }`;
 
         const result = await model.generateContent(prompt);

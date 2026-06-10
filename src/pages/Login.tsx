@@ -23,8 +23,8 @@ export default function Login() {
                 const { error } = await supabase.auth.signInWithPassword({ email, password });
                 if (error) throw error;
 
-                // Si es exitoso, enviamos al usuario al Command Hub
-                navigate('/dashboard/hub');
+                // Si es exitoso, enviamos al usuario al Nexus Brain
+                navigate('/dashboard/nexus-brain');
             } else {
                 // REGISTRO DE NUEVO NODO
                 const { data, error } = await supabase.auth.signUp({
@@ -39,7 +39,7 @@ export default function Login() {
                 if (error) throw error;
 
                 if (data.session) {
-                    navigate('/dashboard/hub');
+                    navigate('/dashboard/nexus-brain');
                 } else {
                     setErrorMsg('Revisa tu correo para verificar la cuenta. (Depende de tu config en Supabase)');
                 }

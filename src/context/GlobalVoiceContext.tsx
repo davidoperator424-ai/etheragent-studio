@@ -34,7 +34,6 @@ RUTAS VÁLIDAS Y SU CONTEXTO:
 - "/commercial-matrix" : Matriz comercial, anuncios de video, render cinemático, Sora, videos.
 - "/commercial" : Laboratorio de anuncios comerciales, ad lab.
 - "/visual-matrix" : Matriz visual, imágenes estáticas, Midjourney, assets gráficos.
-- "/audio-matrix" : Matriz de audio, clonación de voz, ElevenLabs, voces.
 - "/ooh" : Metaverso, vallas publicitarias virtuales, Viktor, out-of-home.
 - "/sonic" : Anuncios de radio, Spotify, Aria, música, jingles.
 - "/ads" : Performance ads, Kaelen, campañas de rendimiento, Google Ads, Meta Ads.
@@ -130,10 +129,6 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         }
         if (lower.includes('imágenes') || lower.includes('visual matrix') || lower.includes('assets visuales')) {
             executeAction('/visual-matrix', 'Iniciando la Matriz Visual. Generador de assets activado.');
-            return true;
-        }
-        if (lower.includes('audio') || lower.includes('podcast') || lower.includes('matriz de audio')) {
-            executeAction('/audio-matrix', 'Abriendo la Matriz Neural de Audio.');
             return true;
         }
         if (lower.includes('sonic') || lower.includes('música') || lower.includes('laboratorio sónico')) {

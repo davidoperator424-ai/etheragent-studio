@@ -285,7 +285,7 @@ export default function IntelligenceEngine() {
                 <ul className="space-y-3">
                   {[
                     'Video 1080p HD',
-                    'Voz TTS premium (ElevenLabs)',
+                    'Voz TTS premium (High Fidelity)',
                     'Lip-sync AI incluido',
                     'Entrega en 20 minutos',
                     'Descarga en MP4'

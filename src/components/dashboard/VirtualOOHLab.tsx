@@ -146,7 +146,7 @@ export default function VirtualOOHLab() {
           <div className="flex items-start gap-2 mb-8">
             <Sparkles size={16} className="text-orange-500 mt-0.5 shrink-0" />
             <span className="text-orange-500 text-[10px] font-mono tracking-widest uppercase break-words pr-4">
-              {workspace ? `Prompt Base: ${workspace.visual_vectors}` : "Nodo: Neo-Shibuya"}
+              {workspace ? `Prompt Base: ${workspace.visual_description}` : "Nodo: Neo-Shibuya"}
             </span>
           </div>
 

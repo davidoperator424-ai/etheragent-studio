@@ -12,7 +12,6 @@ const REQUIRED_KEYS: Record<string, string> = {
   'analyze': 'GOOGLE_API_KEY',
   'agents': 'GOOGLE_API_KEY',
   'generate-avatar': 'GOOGLE_API_KEY',
-  'render': 'ELEVENLABS_API_KEY',
 };
 
 export function validateApiKey(functionName: string): ValidationResult {

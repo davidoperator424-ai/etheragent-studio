@@ -16,7 +16,7 @@ export function useDemoScript() {
     
     try {
       setCurrentStep('MARCUS: Analizando Mercado...');
-      actions.navigate('/dashboard/hub');
+      actions.navigate('/dashboard/nexus-brain');
       await new Promise(r => setTimeout(r, 1500));
 
       setCurrentStep('VIKTOR: Renderizando Espacialmente...');

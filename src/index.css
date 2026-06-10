@@ -101,9 +101,9 @@
     scrollbar-width: none;
   }
 
-  /* The Ultimate Glass Panel Utility */
+  /* The Ultimate Glass Panel Utility — Cupertino Dark */
   .glass-panel {
-    @apply bg-[#1C1C1E]/60 backdrop-blur-xl border border-white/10 shadow-2xl;
+    @apply bg-zinc-900/40 backdrop-blur-md border border-white/5 shadow-2xl;
   }
 
   /* Cybernetic Grid Background */

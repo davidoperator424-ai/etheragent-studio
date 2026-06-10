@@ -1,17 +1,22 @@
+import { useTokenStore } from "@/store/useTokenStore";
+
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 
 export interface CampaignMatrix {
-  valeria_chat: string;
-  marcus_chat: string;
-  viktor_chat: string;
-  target_audience: string;
-  brand_tone: string;
+  mission_id: string;
+  hook: string;
+  narrative_body: string;
+  on_screen_text: string[];
+  call_to_action: string;
+  visual_description: string;
 }
 
 export async function generateCampaign(url: string, command: string): Promise<CampaignMatrix | null> {
+  const { tokens } = useTokenStore.getState();
+  const GROQ_API_KEY = tokens.groq || import.meta.env.VITE_GROQ_API_KEY;
+
   if (!GROQ_API_KEY) {
-    console.error("Falta VITE_GROQ_API_KEY en el .env");
+    console.error("Falta GROQ_API_KEY en el Token Manager");
     return null;
   }
 
@@ -23,25 +28,22 @@ export async function generateCampaign(url: string, command: string): Promise<Ca
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "llama3-70b-8192",
+        model: "llama-3.3-70b-versatile",
         messages: [
           {
             role: "system",
-            content: `Eres EtherAgent OS, el motor de IA de marketing más avanzado del mundo.
-Tu misión es analizar la orden del CEO y la URL objetivo para generar respuestas de chat personalizadas para tus 3 agentes principales.
-
-Reglas para los agentes:
-- Valeria M. (Growth Hacker): Habla rápido, usa jerga de TikTok/retención, es irónica sobre las agencias tradicionales.
-- Marcus V. (High-Ticket Closer): Habla de MRR, CPA, B2B y dolor corporativo. Muy formal.
-- Viktor S. (Spatial Architect): Habla de hologramas, inventario digital y dominar la ciudad.
+            content: `Eres el Director Creativo de EtherAgent OS.
+Tu misión es analizar la orden del CEO y generar una narrativa de campaña B2B para videos nativos.
+YA NO generamos audio separado. Debes estructurar el mensaje que el asset visual proyectará.
 
 Debes responder ESTRICTAMENTE en este formato JSON exacto:
 {
-  "valeria_chat": "Texto que dirá Valeria en el Social Lab...",
-  "marcus_chat": "Texto que dirá Marcus en el Social Lab...",
-  "viktor_chat": "Texto que dirá Viktor en el Virtual OOH Lab...",
-  "target_audience": "Breve descripción del público",
-  "brand_tone": "Tono de la marca"
+  "mission_id": "Un ID único alfanumérico",
+  "hook": "Un gancho narrativo de 3 segundos",
+  "narrative_body": "Cuerpo persuasivo enfocado en resultados",
+  "on_screen_text": ["TEXTO 1", "TEXTO 2"],
+  "call_to_action": "Instrucción final",
+  "visual_description": "Prompt detallado en inglés para generar o elegir el asset visual"
 }`
           },
           {

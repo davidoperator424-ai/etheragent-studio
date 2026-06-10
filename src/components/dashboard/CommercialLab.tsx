@@ -14,17 +14,9 @@ export default function CommercialLab() {
     const [isVideo, setIsVideo] = useState(false);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
-    const [isCompiling, setIsCompiling] = useState(false);
-    const [chatStep, setChatStep] = useState(1);
     const [hasUserInteracted, setHasUserInteracted] = useState(false);
-    const [chatMessages, setChatMessages] = useState<{role: 'user' | 'assistant', content: string, typing?: boolean}[]>([]);
     const videoRef = useRef<HTMLVideoElement>(null);
-    
-    const valeriaMsg1 = "🎬 Ingiriendo activo para distribución en Streaming y TV conectada. Evaluando narrativa de la 'Mafia Aviar'.";
-    const valeriaMsg2 = "🎞️ Aplicando corrección de color cinematográfica. Mejorando rango dinámico (HDR) y masterizando audio espacial (Dolby Atmos) para voces graves y choque de hielos.";
-    const valeriaMsg3 = "✅ Activo publicitario nivel Super Bowl masterizado. Generando copy de cierre: 'El futuro no es humano. Es EtherAgent'. Listo para emisión.";
 
-    // 1. Fetch Inicial: Buscar el asset nuevo
     useEffect(() => {
         const fetchAsset = async () => {
             const { data } = await supabase
@@ -49,7 +41,6 @@ export default function CommercialLab() {
         fetchAsset();
     }, []);
 
-    // 2. Subida Directa Segura (La misma lógica invencible del OOH)
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         try {
             const file = event.target.files?.[0];
@@ -61,15 +52,12 @@ export default function CommercialLab() {
             const fileExt = file.name.split('.').pop();
             const fileName = `${assetId}-${Date.now()}.${fileExt}`;
 
-            // Subir al Storage
             const { error: uploadError } = await supabase.storage.from('visual-assets').upload(fileName, file);
             if (uploadError) throw uploadError;
 
-            // Obtener URL y guardar en BD
             const { data: { publicUrl } } = supabase.storage.from('visual-assets').getPublicUrl(fileName);
             await supabase.from('visual_assets').upsert({ id: assetId, url: publicUrl, updated_at: new Date() });
 
-            // Proyectar en la pantalla Inmediatamente
             setAssetUrl(publicUrl);
             setIsVideo(isVid);
         } catch (error) {
@@ -80,152 +68,106 @@ export default function CommercialLab() {
         }
     };
 
-    const handleCompile = () => {
-        setIsCompiling(true);
-        setChatMessages([{ role: 'assistant', content: valeriaMsg1, typing: true }]);
-        setTimeout(() => {
-            setChatMessages(prev => prev.map(m => m.typing ? { ...m, typing: false } : m));
-            setChatMessages(prev => [...prev, { role: 'assistant', content: valeriaMsg2, typing: true }]);
-        }, 2500);
-        setTimeout(() => {
-            setChatMessages(prev => prev.map(m => m.typing ? { ...m, typing: false } : m));
-            setChatMessages(prev => [...prev, { role: 'assistant', content: valeriaMsg3, typing: false }]);
-            setIsCompiling(false);
-            setChatStep(2);
-        }, 5500);
-    };
-
     return (
         <div className="flex flex-col xl:flex-row min-h-screen w-full bg-[#050505] text-white p-3 sm:p-4 md:p-8 gap-4 sm:gap-8 pb-32 overflow-x-hidden overflow-y-auto">
 
-            {/* PANEL IZQUIERDO: Chat de Kaelen R. */}
+            {/* LEFT PANEL: Commercial Studio */}
             <div className="flex-1 flex flex-col max-w-3xl">
                 <header className="flex items-center justify-between border-b border-white/10 pb-6 mb-6">
                     <div className="flex items-center gap-4">
-                        <div className="relative w-14 h-14 rounded-full border-2 border-purple-500/50 flex items-center justify-center bg-zinc-900">
-                            <span className="font-black text-2xl text-white">K</span>
+                        <div className="relative w-14 h-14 rounded-full border-2 border-emerald-500/50 flex items-center justify-center bg-zinc-900">
+                            <Film className="text-emerald-400" size={28} />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-bold">Kaelen R.</h2>
-                            <p className="text-purple-500 font-mono text-xs tracking-widest uppercase">
-                                Conversion Architect • Active Session
+                            <h2 className="text-2xl font-bold">Commercial Studio</h2>
+                            <p className="text-emerald-400 font-mono text-xs tracking-widest uppercase">
+                                Cinematic Asset Pipeline &bull; Active Session
                             </p>
                         </div>
                     </div>
                 </header>
 
                 <div className="flex-1 bg-[#0a0a0c] border border-white/5 rounded-3xl p-8 flex flex-col relative overflow-visible">
-                    <div className="flex items-center gap-2 mb-8 justify-between w-[90%]">
-                        <div className="flex items-center gap-2">
-                            <Sparkles size={16} className="text-purple-500" />
-                            <span className="text-purple-500 text-[10px] font-mono tracking-widest uppercase">Nodo: Commercial Studio</span>
-                        </div>
+                    <div className="flex items-center gap-2 mb-8">
+                        <Sparkles size={16} className="text-emerald-400" />
+                        <span className="text-emerald-400 text-[10px] font-mono tracking-widest uppercase">Nodo: Commercial Studio</span>
                     </div>
 
-                    {chatMessages.length === 0 && (
-                        <>
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="bg-zinc-900/50 backdrop-blur-md border border-white/10 p-6 rounded-2xl rounded-tl-sm w-[90%] mb-6"
-                            >
-                                <p className="text-zinc-300 text-sm font-medium mb-3 flex items-center gap-2">
-                                    <Sparkles size={14} className="text-purple-500" />
-                                    Masterización de Activo Cinemático
-                                </p>
-                                <div className="p-3 bg-black/60 border border-purple-500/20 rounded-lg font-mono text-xs text-purple-400 leading-relaxed whitespace-pre-wrap">
-                                    🎬 Ingiriendo activo para distribución en Streaming y TV conectada. Evaluando narrativa de la 'Mafia Aviar'.
-                                </div>
-                            </motion.div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="glass-panel p-6 rounded-2xl rounded-tl-sm w-[90%] mb-6"
+                    >
+                        <p className="text-zinc-300 text-sm font-medium mb-3 flex items-center gap-2">
+                            <Sparkles size={14} className="text-emerald-400" />
+                            Masterizaci&oacute;n de Activo Cinem&aacute;tico
+                        </p>
+                        <div className="p-3 bg-black/60 border border-emerald-500/20 rounded-lg font-mono text-xs text-emerald-400 leading-relaxed">
+                            Sube un activo visual para distribuirlo en formato Streaming y TV conectada. El pipeline ajusta color HDR y masteriza audio espacial autom&aacute;ticamente.
+                        </div>
+                    </motion.div>
 
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.2 }}
-                                className="bg-purple-900/20 border border-purple-500/20 p-6 rounded-2xl rounded-tr-sm w-[85%] self-end mb-6"
-                            >
-                                <p className="text-base text-purple-100 leading-relaxed">
-                                    🎞️ Aplicando corrección de color cinematográfica. Mejorando rango dinámico (HDR) y masterizando audio espacial (Dolby Atmos) para voces graves y choque de hielos.
-                                </p>
-                            </motion.div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2 }}
+                        className="bg-indigo-900/20 border border-indigo-500/20 p-6 rounded-2xl rounded-tr-sm w-[85%] self-end mb-6"
+                    >
+                        <p className="text-base text-indigo-100 leading-relaxed">
+                            Aplicando correcci&oacute;n de color cinematogr&aacute;fica. Mejorando rango din&aacute;mico (HDR) y masterizando audio espacial para reproducci&oacute;n en redes.
+                        </p>
+                    </motion.div>
 
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.4 }}
-                                className="bg-zinc-900/50 border border-purple-500/30 p-6 rounded-2xl rounded-tl-sm w-[90%] mb-6"
-                            >
-                                <p className="text-base text-white leading-relaxed font-medium">
-                                    ✅ Activo publicitario nivel Super Bowl masterizado. Generando copy de cierre: 'El futuro no es humano. Es EtherAgent'. Listo para emisión.
-                                </p>
-                            </motion.div>
-                        </>
-                    )}
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4 }}
+                        className="glass-panel p-6 rounded-2xl rounded-tl-sm w-[90%] mb-6"
+                    >
+                        <p className="text-base text-white leading-relaxed font-medium">
+                            Activo publicitario masterizado. Listo para emisi&oacute;n en redes conectadas.
+                        </p>
+                    </motion.div>
 
-                    {chatMessages.map((msg, idx) => (
-                        <motion.div
-                            key={idx}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className={`bg-zinc-900/50 border border-white/10 p-6 rounded-2xl ${msg.role === 'user' ? 'rounded-tr-sm w-[85%] self-end mb-6 border-purple-500/20' : 'rounded-tl-sm w-[90%] mb-6'} ${msg.typing ? 'border-purple-500/30' : ''}`}
-                        >
-                            <p className="text-base text-zinc-300 leading-relaxed">
-                                {msg.content}
-                                {msg.typing && <span className="inline-flex ml-1"><span className="animate-pulse">▊</span></span>}
-                            </p>
-                        </motion.div>
-                    ))}
-
-                    {chatStep === 2 && (
-                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-zinc-900/50 border border-purple-500/30 p-6 rounded-2xl rounded-tl-sm w-[90%] mb-6">
-                            <div className="absolute top-0 left-0 w-1 h-full bg-purple-500" />
-                            <p className="text-base text-white leading-relaxed font-medium">
-                                Asset comercial inyectado. Verifica el dispositivo de alta fidelidad a tu derecha.
-                            </p>
-                        </motion.div>
-                    )}
-
-                    <div className="mt-auto grid grid-cols-2 gap-4">
-                        <button onClick={handleCompile} disabled={isCompiling || chatStep === 2} className="bg-[#111] hover:bg-zinc-800 border border-white/5 p-4 rounded-xl flex items-center justify-center gap-3 text-sm font-bold text-zinc-300 transition-colors">
-                            {isCompiling ? <Loader2 size={18} className="text-purple-500 animate-spin" /> : <Zap size={18} className="text-purple-500" />} Renderizar Comercial
-                        </button>
+                    <div className="mt-auto">
+                        <div className="glass-panel p-4 rounded-xl flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+                                <Zap size={18} className="text-emerald-400" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-sm font-bold text-white">Pipeline de Renderizado</p>
+                                <p className="text-[10px] text-zinc-500 font-mono">Sube un asset para activar el flujo de masterizaci&oacute;n</p>
+                            </div>
+                            <label className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black rounded-xl text-xs font-bold cursor-pointer transition-all active:scale-95">
+                                <input type="file" accept="image/*,video/*" onChange={handleFileUpload} disabled={uploading} className="hidden" />
+                                {uploading ? 'Subiendo...' : 'Subir Asset'}
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* PANEL DERECHO: EL MÓVIL PERFECTO CON BOTÓN DE SUBIDA */}
+            {/* RIGHT PANEL: Phone Preview */}
             <div className="w-full xl:w-[420px] shrink-0 flex flex-col items-center pt-8">
 
                 <div className="w-[280px] sm:w-[300px] md:w-[340px] flex justify-between items-center mb-6 px-2">
                     <h3 className="text-sm font-mono tracking-widest uppercase text-zinc-400 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> Ad Preview
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Ad Preview
                     </h3>
-
-                    {user?.email === 'davicho4522@gmail.com' && (
-                    <div className="relative">
-                        <input type="file" accept="image/*,video/*" onChange={handleFileUpload} disabled={uploading} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                        <button className="flex items-center gap-2 bg-purple-500/10 text-purple-500 border border-purple-500/30 px-3 py-2 min-h-[40px] rounded-lg text-xs font-bold hover:bg-purple-500/20 transition-all active:scale-95">
-                            {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} {uploading ? 'Subiendo...' : 'Subir Asset'}
-                        </button>
-                    </div>
-                    )}
                 </div>
 
-                {/* EL MÓVIL ESTRICTO (340x720px) */}
-                <div className="relative w-[280px] sm:w-[300px] md:w-[340px] h-[560px] sm:h-[640px] md:h-[720px] bg-black border-[6px] sm:border-[8px] border-[#1c1c1e] rounded-[2.5rem] sm:rounded-[3.5rem] shadow-[0_0_50px_rgba(168,85,247,0.15)] overflow-hidden flex flex-col shrink-0 group">
-
-                    {/* Notch del Celular */}
+                <div className="relative w-[280px] sm:w-[300px] md:w-[340px] h-[560px] sm:h-[640px] md:h-[720px] bg-black border-[6px] sm:border-[8px] border-[#1c1c1e] rounded-[2.5rem] sm:rounded-[3.5rem] shadow-[0_0_50px_rgba(16,185,129,0.15)] overflow-hidden flex flex-col shrink-0 group">
                     <div className="absolute top-2 left-1/2 -translate-x-1/2 w-24 h-7 bg-black rounded-full z-50"></div>
 
                     <div className="flex-1 relative bg-zinc-900 w-full h-full">
                         {loading ? (
-                            <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="animate-spin text-purple-500" size={40} /></div>
+                            <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="animate-spin text-emerald-400" size={40} /></div>
                         ) : assetUrl ? (
                             <div className="relative w-full h-full bg-zinc-950 overflow-hidden z-40 rounded-xl border border-zinc-800">
                                 {isVideo ? (
-                                    <video 
+                                    <video
                                         ref={videoRef}
-                                        src={assetUrl} 
+                                        src={assetUrl}
                                         muted={!hasUserInteracted}
                                         playsInline
                                         className="absolute inset-0 w-full h-full object-cover z-0"
@@ -237,7 +179,7 @@ export default function CommercialLab() {
                                     <>
                                         <div className="absolute inset-0 bg-black/40 z-10 pointer-events-none"></div>
                                         {!hasUserInteracted && (
-                                            <div 
+                                            <div
                                                 className="absolute inset-0 flex items-center justify-center z-20 cursor-pointer"
                                                 onClick={() => {
                                                     setHasUserInteracted(true);
@@ -259,72 +201,43 @@ export default function CommercialLab() {
                                 )}
                             </div>
                         ) : (
-                            <div className="relative w-full h-full bg-zinc-950 overflow-hidden z-40 rounded-xl border border-zinc-800">
-                                <video 
-                                    ref={videoRef}
-                                    src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
-                                    muted
-                                    playsInline
-                                    className="absolute inset-0 w-full h-full object-cover z-0"
-                                />
-                                <div className="absolute inset-0 bg-black/40 z-10 pointer-events-none"></div>
-                                <div 
-                                    className="absolute inset-0 flex items-center justify-center z-20 cursor-pointer"
-                                    onClick={() => {
-                                        setHasUserInteracted(true);
-                                        if (videoRef.current) {
-                                            videoRef.current.muted = false;
-                                            videoRef.current.play();
-                                        }
-                                    }}
-                                >
-                                    <div className="relative group">
-                                        <div className="absolute inset-0 rounded-full bg-emerald-500/30 animate-ping group-hover:bg-emerald-500/50 transition-all"></div>
-                                        <div className="relative w-20 h-20 flex items-center justify-center rounded-full bg-emerald-500/20 backdrop-blur-xl border border-emerald-400/50 text-emerald-400 shadow-[0_0_40px_rgba(16,185,129,0.3)] hover:scale-110 transition-transform">
-                                            <Play fill="currentColor" className="w-8 h-8 ml-1" />
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="absolute top-8 left-0 w-full flex justify-center z-30 pointer-events-none">
-                                    <span className="px-4 py-1.5 bg-purple-500/20 backdrop-blur-md border border-purple-400/30 rounded-full text-[10px] text-purple-300 font-mono tracking-widest uppercase shadow-lg">
-                                        Asset Listo
-                                    </span>
+                            <div className="relative w-full h-full flex items-center justify-center bg-zinc-950 p-8">
+                                <div className="text-center space-y-4">
+                                    <Film size={48} className="text-zinc-800 mx-auto" />
+                                    <p className="text-zinc-600 text-sm font-mono">Sube un asset para previsualizar</p>
                                 </div>
                             </div>
                         )}
 
-                        {/* Overlay sutil estilo Red Social */}
-                        <div className="absolute bottom-4 right-4 bg-black/50 backdrop-blur text-[8px] font-mono text-purple-500 px-2 py-1 rounded z-20">
+                        <div className="absolute bottom-4 right-4 bg-black/50 backdrop-blur-md text-[8px] font-mono text-emerald-400 px-2 py-1 rounded z-20">
                             NODE_ACTIVE_COMMERCIAL
                         </div>
                     </div>
                 </div>
 
                 <div className="mt-6 border-t border-white/10 pt-6 w-[280px] sm:w-[300px] md:w-[340px]">
-                    <button 
+                    <button
                         onClick={() => {
                             if (!balance.isInfinite && balance.computeTokens <= 0) {
                                 navigate('/dashboard/subscription');
-                            } else {
-                                console.log("Iniciando creación de campaña Commercial...");
                             }
                         }}
                         className="w-full relative group overflow-hidden rounded-xl p-[1px]"
                     >
-                        <span className="absolute inset-0 bg-gradient-to-r from-purple-500 via-purple-400 to-purple-500 rounded-xl opacity-70 group-hover:opacity-100 animate-pulse transition-opacity"></span>
+                        <span className="absolute inset-0 bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500 rounded-xl opacity-70 group-hover:opacity-100 animate-pulse transition-opacity"></span>
                         <div className="relative px-6 py-4 bg-zinc-950 rounded-xl flex items-center justify-between transition-all group-hover:bg-zinc-900">
                             <div className="flex flex-col text-left">
-                                <span className="text-white font-bold text-sm">Crear Campaña Premium</span>
+                                <span className="text-white font-bold text-sm">Crear Campa&ntilde;a Premium</span>
                                 <span className="text-zinc-500 text-[11px] font-mono">Requiere Compute Tokens</span>
                             </div>
-                            <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center border border-purple-500/50 group-hover:scale-110 transition-transform">
-                                <ArrowRight className="w-4 h-4 text-purple-400" />
+                            <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/50 group-hover:scale-110 transition-transform">
+                                <ArrowRight className="w-4 h-4 text-emerald-400" />
                             </div>
                         </div>
                     </button>
                 </div>
 
-                <button className={`mt-4 sm:mt-6 w-[280px] sm:w-[300px] md:w-[340px] py-3 sm:py-4 rounded-xl font-black font-mono text-xs sm:text-sm tracking-widest transition-all duration-300 ${chatStep === 2 ? 'bg-purple-500 hover:bg-purple-400 text-black shadow-[0_0_30px_rgba(168,85,247,0.3)]' : 'bg-zinc-900 text-zinc-600 border border-white/5 cursor-not-allowed'}`}>
+                <button className="mt-4 sm:mt-6 w-[280px] sm:w-[300px] md:w-[340px] py-3 sm:py-4 rounded-xl font-black font-mono text-xs sm:text-sm tracking-widest transition-all duration-300 bg-emerald-500 hover:bg-emerald-400 text-black shadow-[0_0_30px_rgba(16,185,129,0.3)] active:scale-95">
                     [ DEPLOY TO NETWORKS ]
                 </button>
             </div>

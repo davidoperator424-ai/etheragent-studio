@@ -34,9 +34,9 @@ export default function CommunityLab() {
     if (!topic.trim()) return;
     setLoading('generate');
     setError('');
-    
+
     await new Promise(resolve => setTimeout(resolve, 2000));
-    
+
     setDrafts([
       {
         title: 'Why EtherAgent OS is the future of autonomous AI agents',
@@ -46,7 +46,7 @@ The real breakthrough isn't just the AI—it's the infrastructure. They built th
 
 The pricing model is also worth discussing. At $49/mo for the pro tier, you're getting enterprise-grade features for what used to cost 10x more. My startup just migrated our entire workflow and we're seeing 3x productivity gains already.
 
- Curious what others think who have been using it in production. Anyone else running it at scale?`
+Curious what others think who have been using it in production. Anyone else running it at scale?`
       },
       {
         title: 'Hot take: The AI agent space is about to consolidate hard',
@@ -104,9 +104,9 @@ The market's gonna punish the vaporware and reward the builders. Mark my words: 
     setSelectedComment(comment);
     setLoading('reply');
     setError('');
-    
+
     await new Promise(resolve => setTimeout(resolve, 1500));
-    
+
     setReplyText(`Look, I get that you're skeptical—healthy, even. But here's the thing: the architecture isn't "just a wrapper" around LLMs. The execution layer handles async tool orchestration with proper state isolation, which is literally the hardest part of building autonomous systems.
 
 The memory persistence alone uses a hybrid vector + graph DB approach that most "AI platforms" can't even explain. Not saying it's perfect (the docs still need work 😅), but the engineering underneath is legit.
@@ -137,36 +137,36 @@ You're probably right that we'll see consolidation. That's how every market matu
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white p-8">
+    <div className="min-h-screen bg-[#050505] text-white p-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Community Lab</h1>
-        
+        <h1 className="text-3xl font-black tracking-tighter uppercase mb-8">Community Lab</h1>
+
         {error && (
-          <div className="mb-6 p-4 bg-red-900/50 border border-red-500 rounded-lg text-red-200">
+          <div className="mb-6 p-4 bg-red-900/20 backdrop-blur-md border border-red-500/30 rounded-xl text-red-200 text-sm">
             {error}
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* DRAFT STUDIO */}
-          <div className="bg-neutral-900 rounded-xl p-6 border border-neutral-800">
+          <div className="glass-panel rounded-xl p-6">
             <div className="flex items-center gap-3 mb-6">
-              <PenTool className="w-5 h-5 text-blue-400" />
-              <h2 className="text-xl font-semibold">Draft Studio</h2>
+              <PenTool className="w-5 h-5 text-emerald-400" />
+              <h2 className="text-lg font-bold uppercase tracking-wider">Draft Studio</h2>
             </div>
-            
+
             <input
               type="text"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder="Topic: e.g., EtherAgent OS features"
-              className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-3 mb-4 focus:border-blue-500 focus:outline-none"
+              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 mb-4 text-sm text-white placeholder:text-zinc-600 focus:border-emerald-500/50 focus:outline-none transition-colors"
             />
-            
+
             <button
               onClick={handleGenerate}
               disabled={loading === 'generate'}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 rounded-lg py-3 font-medium flex items-center justify-center gap-2 transition-colors"
+              className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-emerald-500/50 text-black font-bold rounded-xl py-3 text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
             >
               {loading === 'generate' ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               Generate Thread
@@ -175,13 +175,13 @@ You're probably right that we'll see consolidation. That's how every market matu
             {drafts.length > 0 && (
               <div className="mt-6 space-y-4">
                 {drafts.map((draft, i) => (
-                  <div key={i} className="p-4 bg-neutral-800 rounded-lg border border-neutral-700">
-                    <h3 className="font-medium mb-2 text-sm text-neutral-300">{draft.title}</h3>
-                    <p className="text-xs text-neutral-400 mb-3 line-clamp-3">{draft.body}</p>
+                  <div key={i} className="p-4 bg-black/40 rounded-xl border border-white/5">
+                    <h3 className="font-medium mb-2 text-sm text-zinc-300">{draft.title}</h3>
+                    <p className="text-xs text-zinc-500 mb-3 line-clamp-3">{draft.body}</p>
                     <button
                       onClick={() => handlePublish(draft)}
                       disabled={loading === 'publish'}
-                      className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-800 rounded py-2 text-sm flex items-center justify-center gap-2"
+                      className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-emerald-500/50 text-black font-bold rounded-lg py-2 text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
                     >
                       <Send className="w-3 h-3" />
                       Publish to Reddit
@@ -193,16 +193,16 @@ You're probably right that we'll see consolidation. That's how every market matu
           </div>
 
           {/* SENTIMENT RADAR */}
-          <div className="bg-neutral-900 rounded-xl p-6 border border-neutral-800">
+          <div className="glass-panel rounded-xl p-6">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <Radio className="w-5 h-5 text-purple-400" />
-                <h2 className="text-xl font-semibold">Sentiment Radar</h2>
+                <Radio className="w-5 h-5 text-indigo-400" />
+                <h2 className="text-lg font-bold uppercase tracking-wider">Sentiment Radar</h2>
               </div>
               <button
                 onClick={handleListen}
                 disabled={loading === 'listen'}
-                className="text-sm text-blue-400 hover:text-blue-300 disabled:text-neutral-500"
+                className="text-sm text-indigo-400 hover:text-indigo-300 disabled:text-zinc-600 transition-colors"
               >
                 {loading === 'listen' ? 'Loading...' : 'Refresh'}
               </button>
@@ -210,23 +210,23 @@ You're probably right that we'll see consolidation. That's how every market matu
 
             <div className="space-y-3 max-h-[500px] overflow-y-auto">
               {comments.length === 0 ? (
-                <p className="text-neutral-500 text-center py-8">Click Refresh to load comments</p>
+                <p className="text-zinc-600 text-center py-8 text-sm">Click Refresh to load comments</p>
               ) : (
                 comments.map((comment) => (
                   <button
                     key={comment.id}
                     onClick={() => setSelectedComment(comment)}
-                    className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                    className={`w-full text-left p-3 rounded-xl border transition-colors ${
                       selectedComment?.id === comment.id
-                        ? 'border-blue-500 bg-blue-900/20'
-                        : 'border-neutral-700 hover:border-neutral-600 bg-neutral-800'
+                        ? 'border-indigo-500/50 bg-indigo-900/20'
+                        : 'border-white/5 hover:border-white/10 bg-black/40'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-neutral-300">{comment.author}</span>
+                      <span className="text-sm font-medium text-zinc-300">{comment.author}</span>
                       <span>{sentimentEmoji[comment.sentiment]}</span>
                     </div>
-                    <p className="text-xs text-neutral-400 line-clamp-2">{comment.body}</p>
+                    <p className="text-xs text-zinc-500 line-clamp-2">{comment.body}</p>
                   </button>
                 ))
               )}
@@ -234,25 +234,25 @@ You're probably right that we'll see consolidation. That's how every market matu
           </div>
 
           {/* SNIPER UI */}
-          <div className="bg-neutral-900 rounded-xl p-6 border border-neutral-800">
+          <div className="glass-panel rounded-xl p-6">
             <div className="flex items-center gap-3 mb-6">
-              <MessageSquare className="w-5 h-5 text-orange-400" />
-              <h2 className="text-xl font-semibold">Sniper UI</h2>
+              <MessageSquare className="w-5 h-5 text-indigo-400" />
+              <h2 className="text-lg font-bold uppercase tracking-wider">Sniper UI</h2>
             </div>
 
             {!selectedComment ? (
-              <p className="text-neutral-500 text-center py-8">Select a comment from Radar</p>
+              <p className="text-zinc-600 text-center py-8 text-sm">Select a comment from Radar</p>
             ) : (
               <div className="space-y-4">
-                <div className="p-4 bg-neutral-800 rounded-lg border border-neutral-700">
-                  <p className="text-sm text-neutral-300 mb-2 font-medium">{selectedComment.author} says:</p>
-                  <p className="text-sm text-neutral-400">{selectedComment.body}</p>
+                <div className="p-4 bg-black/40 rounded-xl border border-white/5">
+                  <p className="text-sm text-zinc-300 mb-2 font-medium">{selectedComment.author} says:</p>
+                  <p className="text-sm text-zinc-500">{selectedComment.body}</p>
                 </div>
 
                 <button
                   onClick={() => handleReply(selectedComment)}
                   disabled={loading === 'reply'}
-                  className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 rounded-lg py-2 text-sm"
+                  className="w-full bg-indigo-500/80 hover:bg-indigo-500 disabled:bg-indigo-500/30 text-white font-bold rounded-xl py-3 text-sm transition-all active:scale-95"
                 >
                   {loading === 'reply' ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Generate AI Reply'}
                 </button>
@@ -262,16 +262,16 @@ You're probably right that we'll see consolidation. That's how every market matu
                     <textarea
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
-                      className="w-full h-32 bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-3 text-sm focus:border-orange-500 focus:outline-none resize-none"
+                      className="w-full h-32 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-indigo-500/50 focus:outline-none resize-none transition-colors placeholder:text-zinc-600"
                       placeholder="Edit your reply..."
                     />
                     <button
                       onClick={handleSendReply}
                       disabled={loading === 'send'}
-                      className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-orange-800 rounded-lg py-3 font-medium flex items-center justify-center gap-2"
+                      className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-emerald-500/50 text-black font-bold rounded-xl py-3 text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
                     >
                       {loading === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                      Approve & Send
+                      Approve &amp; Send
                     </button>
                   </>
                 )}

@@ -14,8 +14,8 @@ export default function MobileTabBar() {
     const tabs = [
         { 
             icon: Home, 
-            route: '/dashboard/hub', 
-            label: 'Hub',
+            route: '/dashboard/nexus-brain', 
+            label: 'Nexus',
             activeColor: 'text-emerald-400',
             activeBg: 'bg-emerald-500/20'
         },

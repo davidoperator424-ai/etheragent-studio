@@ -10,7 +10,6 @@ import { useAuth } from '@/contexts/AuthContext';
 
 // 🟢 MÓDULOS PÚBLICOS (visibles para todos los usuarios autenticados)
 const PUBLIC_LAB_LINKS = [
-  { name: 'Command Hub', path: '/dashboard/hub', icon: Terminal },
   { name: 'Nexus Brain', path: '/dashboard/nexus-brain', icon: Brain },
   { name: 'Social Lab', path: '/dashboard/social', icon: Smartphone },
   { name: 'Virtual OOH', path: '/dashboard/ooh', icon: MonitorPlay },
@@ -36,8 +35,7 @@ const PUBLIC_SYSTEM_LINKS = [
 
 // 🟢 MÓDULOS DEL SISTEMA ADMIN (SOLO para davicho4522@gmail.com)
 const ADMIN_SYSTEM_LINKS = [
-  { name: 'Visual Matrix', path: '/dashboard/visual-matrix', icon: Palette },
-  { name: 'Audio Matrix', path: '/dashboard/audio-matrix', icon: Volume2 },
+  { name: 'Visual Matrix', path: '/dashboard/visual-matrix', icon: Palette }
 ];
 
 export default function SpatialSidebar() {
@@ -98,12 +96,12 @@ export default function SpatialSidebar() {
             {allLabLinks.map((link) => {
               const Icon = link.icon;
               // 🔴 LA CORRECCIÓN DEL ENRUTAMIENTO (Mata el bug del Social Lab iluminado)
-              const isActive = location.pathname === link.path || (link.path === '/dashboard/hub' && location.pathname === '/dashboard');
+              const isActive = location.pathname === link.path || (link.path === '/dashboard/nexus-brain' && location.pathname === '/dashboard');
 
               return (
                 <button
                   key={link.path}
-                  onClick={() => navigate(link.path === '/dashboard/hub' && location.pathname === '/dashboard' ? '/dashboard' : link.path)}
+                  onClick={() => navigate(link.path === '/dashboard/nexus-brain' && location.pathname === '/dashboard' ? '/dashboard' : link.path)}
                   className={`w-full flex items-center justify-center lg:justify-start gap-3 p-3 lg:px-4 lg:py-3 rounded-xl transition-all duration-300 ${isActive
                       ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.1)]'
                       : 'text-zinc-400 hover:bg-white/5 hover:text-white border border-transparent'

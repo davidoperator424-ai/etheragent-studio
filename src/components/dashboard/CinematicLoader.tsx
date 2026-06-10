@@ -11,7 +11,7 @@ interface CinematicLoaderProps {
 const commandLogs = [
   { icon: Lock, text: '[SYS] Validando credenciales de acceso...' },
   { icon: Database, text: '[DB] Conectando a Neural Matrix Cluster...' },
-  { icon: Zap, text: '[API] Inicializando ElevenLabs Engine...' },
+  { icon: Zap, text: '[API] Inicializando Neural Voice Engine...' },
   { icon: Headphones, text: '[AUDIO] Sintetizando frecuencias vocales v2.4...' },
   { icon: Layers, text: '[VISUAL] Renderizando texturas 8K HDR...' },
   { icon: Eye, text: '[KAELEN] Ajustando iluminación volumétrica...' },
@@ -21,7 +21,7 @@ const commandLogs = [
 ];
 
 const progressBars = [
-  { id: 'audio', label: 'Audio Matrix Synthesis', speed: 0.8 },
+  { id: 'audio', label: 'Neural Voice Synthesis', speed: 0.8 },
   { id: 'visual', label: 'Visual Matrix Rendering', speed: 0.5 },
   { id: 'neural', label: 'Neural Assembly', speed: 0.3 },
 ];
