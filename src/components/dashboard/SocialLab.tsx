@@ -198,7 +198,8 @@ export default function SocialLab() {
     try {
       const ext = file.name.split('.').pop() || 'mp4';
       const timestamp = Date.now();
-      const filePath = `${campaign.id}/${currentAsset.type || 'video'}_${timestamp}.${ext}`;
+      const safeType = (currentAsset.type || 'video').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const filePath = `${campaign.id}/${safeType}_${timestamp}.${ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from('campaign-videos')
