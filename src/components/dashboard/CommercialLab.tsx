@@ -1,21 +1,60 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabaseClient';
 import { useTokenBalance } from '@/hooks/useTokenBalance';
 import { useAuth } from '@/contexts/AuthContext';
-import { Sparkles, Zap, Loader2, Upload, Film, Play, ArrowRight } from 'lucide-react';
+import { useCampaignStore } from '@/store/useCampaignStore';
+import { Sparkles, Zap, Loader2, Upload, Film, Play, ArrowRight, Brain } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+interface CampaignRecord {
+  id: string;
+  target_url: string;
+  detected_sector: string;
+  strategy_score: number;
+  campaign_data: any;
+  created_at: string;
+}
 
 export default function CommercialLab() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { balance } = useTokenBalance();
     const { user } = useAuth();
+    const setWorkspace = useCampaignStore(state => state.setWorkspace);
+    const [campaign, setCampaign] = useState<CampaignRecord | null>(null);
     const [assetUrl, setAssetUrl] = useState<string | null>(null);
     const [isVideo, setIsVideo] = useState(false);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
     const [hasUserInteracted, setHasUserInteracted] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
+
+    useEffect(() => {
+        const fetchCampaign = async () => {
+          if (!user) return;
+          const campaignId = searchParams.get('campaign');
+          try {
+            let data, error;
+            if (campaignId) {
+              const res = await supabase.from('nexus_youtube_ads').select('*').eq('id', campaignId).single();
+              data = res.data;
+              error = res.error;
+            } else {
+              const res = await supabase.from('nexus_youtube_ads').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).single();
+              data = res.data;
+              error = res.error;
+            }
+            if (data) {
+              setCampaign(data as CampaignRecord);
+              setWorkspace(data.campaign_data);
+            }
+          } catch (err) {
+            console.error('Error fetching campaign:', err);
+          }
+        };
+        fetchCampaign();
+    }, [searchParams, user, setWorkspace]);
 
     useEffect(() => {
         const fetchAsset = async () => {
@@ -68,6 +107,8 @@ export default function CommercialLab() {
         }
     };
 
+    const campaignData = campaign?.campaign_data;
+
     return (
         <div className="flex flex-col xl:flex-row min-h-screen w-full bg-[#050505] text-white p-3 sm:p-4 md:p-8 gap-4 sm:gap-8 pb-32 overflow-x-hidden overflow-y-auto">
 
@@ -87,23 +128,31 @@ export default function CommercialLab() {
                     </div>
                 </header>
 
-                <div className="flex-1 bg-[#0a0a0c] border border-white/5 rounded-3xl p-8 flex flex-col relative overflow-visible">
-                    <div className="flex items-center gap-2 mb-8">
-                        <Sparkles size={16} className="text-emerald-400" />
-                        <span className="text-emerald-400 text-[10px] font-mono tracking-widest uppercase">Nodo: Commercial Studio</span>
+                <div className="flex-1 bg-[#0a0a0c] border border-white/5 rounded-3xl p-8 flex flex-col relative overflow-visible shadow-2xl">
+                    <div className="flex items-center justify-between mb-8">
+                        <div className="flex items-center gap-2">
+                            <Sparkles size={16} className="text-emerald-400" />
+                            <span className="text-emerald-400 text-[10px] font-mono tracking-widest uppercase">Nodo: Commercial Studio</span>
+                        </div>
+                        {campaign && (
+                          <div className="flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full">
+                            <Brain size={12} className="text-zinc-500" />
+                            <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest">{new URL(campaign.target_url).hostname}</span>
+                          </div>
+                        )}
                     </div>
 
                     <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="glass-panel p-6 rounded-2xl rounded-tl-sm w-[90%] mb-6"
+                        className="glass-panel p-6 rounded-2xl rounded-tl-sm w-[95%] mb-6 border-white/10"
                     >
                         <p className="text-zinc-300 text-sm font-medium mb-3 flex items-center gap-2">
                             <Sparkles size={14} className="text-emerald-400" />
-                            Masterizaci&oacute;n de Activo Cinem&aacute;tico
+                            Estrategia de Visualizaci&oacute;n Neural
                         </p>
-                        <div className="p-3 bg-black/60 border border-emerald-500/20 rounded-lg font-mono text-xs text-emerald-400 leading-relaxed">
-                            Sube un activo visual para distribuirlo en formato Streaming y TV conectada. El pipeline ajusta color HDR y masteriza audio espacial autom&aacute;ticamente.
+                        <div className="p-4 bg-black/60 border border-emerald-500/20 rounded-lg font-mono text-xs text-emerald-400 leading-relaxed italic">
+                            {campaignData?.creative_rationale || "Sube un activo visual para distribuirlo en formato Streaming y TV conectada. El pipeline ajusta color HDR y masteriza audio espacial automáticamente."}
                         </div>
                     </motion.div>
 
@@ -111,36 +160,39 @@ export default function CommercialLab() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2 }}
-                        className="bg-indigo-900/20 border border-indigo-500/20 p-6 rounded-2xl rounded-tr-sm w-[85%] self-end mb-6"
+                        className="bg-indigo-900/10 border border-indigo-500/20 p-6 rounded-2xl rounded-tr-sm w-[90%] self-end mb-6"
                     >
-                        <p className="text-base text-indigo-100 leading-relaxed">
-                            Aplicando correcci&oacute;n de color cinematogr&aacute;fica. Mejorando rango din&aacute;mico (HDR) y masterizando audio espacial para reproducci&oacute;n en redes.
+                        <p className="text-sm text-indigo-100/80 leading-relaxed font-medium">
+                            {campaignData?.narrative_body || "Aplicando corrección de color cinematográfica. Mejorando rango dinámico (HDR) y masterizando audio espacial para reproducción en redes."}
                         </p>
                     </motion.div>
 
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.4 }}
-                        className="glass-panel p-6 rounded-2xl rounded-tl-sm w-[90%] mb-6"
-                    >
-                        <p className="text-base text-white leading-relaxed font-medium">
-                            Activo publicitario masterizado. Listo para emisi&oacute;n en redes conectadas.
-                        </p>
-                    </motion.div>
+                    {campaignData?.hook && (
+                      <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.4 }}
+                          className="glass-panel p-6 rounded-2xl rounded-tl-sm w-[90%] mb-6 border-emerald-500/20"
+                      >
+                          <p className="text-emerald-500 text-[10px] font-mono tracking-widest uppercase mb-2">Cinematic Hook</p>
+                          <p className="text-lg text-white leading-tight font-black italic">
+                              "{campaignData.hook}"
+                          </p>
+                      </motion.div>
+                    )}
 
                     <div className="mt-auto">
-                        <div className="glass-panel p-4 rounded-xl flex items-center gap-4">
+                        <div className="glass-panel p-4 rounded-xl flex items-center gap-4 bg-white/5 border-white/10">
                             <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
                                 <Zap size={18} className="text-emerald-400" />
                             </div>
                             <div className="flex-1">
                                 <p className="text-sm font-bold text-white">Pipeline de Renderizado</p>
-                                <p className="text-[10px] text-zinc-500 font-mono">Sube un asset para activar el flujo de masterizaci&oacute;n</p>
+                                <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-tighter">HDR Cinema Master &bull; Spatial Audio v4</p>
                             </div>
-                            <label className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black rounded-xl text-xs font-bold cursor-pointer transition-all active:scale-95">
+                            <label className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black rounded-xl text-xs font-bold cursor-pointer transition-all active:scale-95 shadow-[0_0_20px_rgba(16,185,129,0.3)]">
                                 <input type="file" accept="image/*,video/*" onChange={handleFileUpload} disabled={uploading} className="hidden" />
-                                {uploading ? 'Subiendo...' : 'Subir Asset'}
+                                {uploading ? 'PROCESANDO...' : 'SUBIR ACTIVO'}
                             </label>
                         </div>
                     </div>

@@ -1,11 +1,56 @@
-import React, { useState } from 'react';
-import { Radio, Sparkles, Zap, Music, Loader2, Waves } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { supabase } from '@/lib/supabaseClient';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCampaignStore } from '@/store/useCampaignStore';
+import { Radio, Sparkles, Zap, Music, Loader2, Waves, Brain } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+interface CampaignRecord {
+  id: string;
+  target_url: string;
+  detected_sector: string;
+  strategy_score: number;
+  campaign_data: any;
+  created_at: string;
+}
+
 export default function SonicLab() {
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+  const setWorkspace = useCampaignStore(state => state.setWorkspace);
+  const [campaign, setCampaign] = useState<CampaignRecord | null>(null);
   const [isCompiling, setIsCompiling] = useState(false);
   const [chatStep, setChatStep] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
+
+  useEffect(() => {
+    const fetchCampaign = async () => {
+      if (!user) return;
+      const campaignId = searchParams.get('campaign');
+      try {
+        let data, error;
+        if (campaignId) {
+          const res = await supabase.from('nexus_youtube_ads').select('*').eq('id', campaignId).single();
+          data = res.data;
+          error = res.error;
+        } else {
+          const res = await supabase.from('nexus_youtube_ads').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).single();
+          data = res.data;
+          error = res.error;
+        }
+        if (data) {
+          setCampaign(data as CampaignRecord);
+          setWorkspace(data.campaign_data);
+        }
+      } catch (err) {
+        console.error('Error fetching campaign:', err);
+      }
+    };
+    fetchCampaign();
+  }, [searchParams, user, setWorkspace]);
+
+  const campaignData = campaign?.campaign_data;
 
   const handleCompile = () => {
     setIsCompiling(true);
@@ -34,43 +79,52 @@ export default function SonicLab() {
               <p className="text-emerald-400 font-mono text-[10px] tracking-widest uppercase">Neural Audio Engine</p>
             </div>
           </div>
-          <div className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2">
-            <Sparkles size={12} className="text-emerald-400" />
-            <span className="text-[10px] text-emerald-400 font-mono uppercase tracking-widest">Active Session</span>
+          <div className="flex items-center gap-3">
+            {campaign && (
+              <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full">
+                <Brain size={12} className="text-emerald-500" />
+                <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest">{new URL(campaign.target_url).hostname}</span>
+              </div>
+            )}
+            <div className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2">
+              <Sparkles size={12} className="text-emerald-400" />
+              <span className="text-[10px] text-emerald-400 font-mono uppercase tracking-widest">Active Session</span>
+            </div>
           </div>
         </header>
 
         <div className="flex-1 p-6 flex flex-col">
-          <div className="glass-panel p-5 rounded-2xl rounded-tl-sm w-[90%] mb-4">
+          <div className="glass-panel p-5 rounded-2xl rounded-tl-sm w-[90%] mb-4 border-white/10">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] font-mono text-zinc-500">SYSTEM &bull; NEURAL ENGINE</span>
             </div>
-            <p className="text-sm text-zinc-300 leading-relaxed">
-              Guion B2B analizado. He configurado la síntesis vocal con un tono persuasivo y m&uacute;sica de fondo lo-fi corporativa. &iquest;Inicio la compilaci&oacute;n del master de audio?
+            <p className="text-sm text-zinc-300 leading-relaxed italic">
+              {campaignData?.detected_sector ? `Guion para el sector ${campaignData.detected_sector} analizado. ` : "Guion B2B analizado. "}
+              He configurado la síntesis vocal con un tono persuasivo {campaignData?.emotional_tone ? `(${campaignData.emotional_tone})` : ""} y m&uacute;sica de fondo lo-fi corporativa. &iquest;Inicio la compilaci&oacute;n del master de audio?
             </p>
           </div>
 
-          <div className="bg-emerald-900/20 border border-emerald-500/20 p-5 rounded-2xl rounded-tr-sm w-[85%] self-end mb-4">
-            <p className="text-sm text-emerald-100 leading-relaxed">
-              Adelante. Aseg&uacute;rate de que la mezcla no sature en dispositivos m&oacute;viles.
+          <div className="bg-emerald-900/10 border border-emerald-500/20 p-5 rounded-2xl rounded-tr-sm w-[85%] self-end mb-4">
+            <p className="text-sm text-emerald-100/80 leading-relaxed font-medium">
+              {campaignData?.narrative_body ? `Adelante. Procesa el master para la narrativa: "${campaignData.narrative_body.substring(0, 100)}..."` : "Adelante. Asegúrate de que la mezcla no sature en dispositivos móviles."}
             </p>
           </div>
 
           {chatStep === 2 && (
-             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-panel p-5 rounded-2xl rounded-tl-sm w-[90%] mb-4 relative overflow-hidden">
+             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-panel p-5 rounded-2xl rounded-tl-sm w-[90%] mb-4 relative overflow-hidden border-emerald-500/20">
                <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />
-               <p className="text-sm text-white leading-relaxed font-medium">
-                 Masterizaci&oacute;n completada a -14 LUFS. Tienes el render de audio en el reproductor a tu derecha. Presiona <span className="text-emerald-400 font-mono text-xs border border-emerald-500/50 px-1 rounded bg-emerald-500/10">[BROADCAST]</span> para publicarlo.
+               <p className="text-sm text-white leading-relaxed font-black italic">
+                 {campaignData?.hook ? `Masterizado completado: "${campaignData.hook}"` : "Masterización completada a -14 LUFS. Tienes el render de audio en el reproductor a tu derecha."}
                </p>
              </motion.div>
           )}
 
           <div className="mt-auto grid grid-cols-2 gap-3">
-            <button onClick={handleCompile} disabled={isCompiling || chatStep === 2} className="glass-panel hover:bg-zinc-800/60 p-3 rounded-xl flex items-center gap-3 text-xs text-zinc-300 transition-all active:scale-95">
+            <button onClick={handleCompile} disabled={isCompiling || chatStep === 2} className="bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-xl flex items-center justify-center gap-3 text-xs font-bold uppercase tracking-widest text-zinc-300 transition-all active:scale-95 shadow-xl">
               {isCompiling ? <Loader2 size={16} className="text-emerald-400 animate-spin" /> : <Zap size={16} className="text-emerald-400" />}
               Sintetizar Audio
             </button>
-            <button className="glass-panel p-3 rounded-xl flex items-center gap-3 text-xs text-zinc-500 cursor-not-allowed">
+            <button className="bg-zinc-900/40 border border-white/5 p-4 rounded-xl flex items-center justify-center gap-3 text-xs font-bold uppercase tracking-widest text-zinc-600 cursor-not-allowed">
               <Music size={16} className="text-zinc-600" /> Cambiar BGM
             </button>
           </div>
@@ -94,8 +148,10 @@ export default function SonicLab() {
              )}
              <Radio size={48} className={chatStep === 2 && isPlaying ? "text-emerald-400 animate-pulse" : "text-emerald-400/50"} />
           </div>
-          <h2 className="text-xl font-bold mb-1 text-white">Campa&ntilde;a B2B Q4</h2>
-          <p className="text-sm text-zinc-400 mb-8">Neural Voice &bull; Premium</p>
+          <h2 className="text-xl font-bold mb-1 text-white text-center px-4">
+            {campaignData?.detected_sector ? `Campaña ${campaignData.detected_sector}` : "Campaña B2B Q4"}
+          </h2>
+          <p className="text-sm text-zinc-400 mb-8">{new URL(campaign?.target_url || 'https://etheragent.ai').hostname}</p>
 
           <div className="w-full mt-auto px-6">
             <div className="h-1 bg-zinc-800 rounded-full mb-6 overflow-hidden">

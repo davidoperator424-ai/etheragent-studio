@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { supabase } from '@/lib/supabaseClient';
 import {
   Sparkles, Instagram, Smartphone, Linkedin, Eye, Film,
-  Heart, MessageCircle, Share2, Play, CheckCircle2, X, Search, Vault, Crown
+  Heart, MessageCircle, Share2, Play, CheckCircle2, X, Search, Vault, Crown, Brain
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../../services/api';
@@ -13,6 +15,15 @@ interface Props {
   selectedAvatar: Avatar | null;
 }
 
+interface CampaignRecord {
+  id: string;
+  target_url: string;
+  detected_sector: string;
+  strategy_score: number;
+  campaign_data: any;
+  created_at: string;
+}
+
 const platforms = [
   { id: 'Instagram', icon: <Instagram size={20} />, color: 'from-purple-500 to-pink-500' },
   { id: 'TikTok', icon: <Smartphone size={20} />, color: 'from-cyan-400 to-red-400' },
@@ -21,6 +32,8 @@ const platforms = [
 
 export default function BroadcasterLab({ selectedAvatar }: Props) {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const [campaign, setCampaign] = useState<CampaignRecord | null>(null);
   const [avatars, setAvatars] = useState<Avatar[]>([]);
   const [activeAvatar, setActiveAvatar] = useState<Avatar | null>(null);
   const [activePlatform, setActivePlatform] = useState('Instagram');
@@ -31,6 +44,40 @@ export default function BroadcasterLab({ selectedAvatar }: Props) {
   const [isPlayingRealVideo, setIsPlayingRealVideo] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const { toast } = useToast();
+
+  const setWorkspace = useCampaignStore(state => state.setWorkspace);
+
+  useEffect(() => {
+    const fetchCampaign = async () => {
+      if (!user) return;
+      const campaignId = searchParams.get('campaign');
+      try {
+        let data, error;
+        if (campaignId) {
+          const res = await supabase.from('nexus_youtube_ads').select('*').eq('id', campaignId).single();
+          data = res.data;
+          error = res.error;
+        } else {
+          const res = await supabase.from('nexus_youtube_ads').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).single();
+          data = res.data;
+          error = res.error;
+        }
+        if (data) {
+          setCampaign(data as CampaignRecord);
+          setWorkspace(data.campaign_data);
+        }
+      } catch (err) {
+        console.error('Error fetching campaign:', err);
+      }
+    };
+    fetchCampaign();
+  }, [searchParams, user, setWorkspace]);
+
+  const campaignData = campaign?.campaign_data;
+  const isNewFormat = !!campaignData?.hook;
+  const campaignScript = isNewFormat 
+    ? (campaignData.narrative_body || campaignData.hook)
+    : (campaignData?.assets?.[0]?.voiceover_script || "La ineficiencia es el mayor coste de cualquier startup B2B. EtherAgent OS no es software, es tu nuevo C-Suite autónomo.");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -81,7 +128,7 @@ export default function BroadcasterLab({ selectedAvatar }: Props) {
           if (updated) setActiveAvatar(updated);
         }
       });
-    }, 2000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [user, selectedAvatar, activeAvatar]);
@@ -106,7 +153,7 @@ export default function BroadcasterLab({ selectedAvatar }: Props) {
     try {
       await api.renderVideo(
         activeAvatar.id,
-        "La ineficiencia es el mayor coste de cualquier startup B2B. EtherAgent OS no es software, es tu nuevo C-Suite autónomo.",
+        campaignScript,
         activePlatform
       );
       
@@ -197,14 +244,24 @@ export default function BroadcasterLab({ selectedAvatar }: Props) {
           <h2 className="text-3xl font-bold text-white tracking-tight">Broadcaster Lab</h2>
           <p className="text-sm text-white/40 mt-1">Casting neuronal y síntesis de video conectada a EtherClaw.</p>
         </div>
-        <button 
-          onClick={runRender}
-          disabled={isRendering}
-          className="px-6 py-3 bg-emerald-500 text-black rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-emerald-400 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isRendering ? 'Processing API...' : (videoError ? 'Video expiró - Sube uno nuevo' : (activeAvatar.videoUrl ? 'Previsualizar en Redes' : 'Render & Deploy'))}
-          <Play size={14} />
-        </button>
+        <div className="flex items-center gap-3">
+          {campaign && (
+            <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-2xl">
+              <Brain size={14} className="text-emerald-500" />
+              <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest">
+                Active Context: {new URL(campaign.target_url).hostname}
+              </span>
+            </div>
+          )}
+          <button 
+            onClick={runRender}
+            disabled={isRendering}
+            className="px-6 py-3 bg-emerald-500 text-black rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-emerald-400 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isRendering ? 'Processing API...' : (videoError ? 'Video expiró - Sube uno nuevo' : (activeAvatar.videoUrl ? 'Previsualizar en Redes' : 'Render & Deploy'))}
+            <Play size={14} />
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -260,14 +317,14 @@ export default function BroadcasterLab({ selectedAvatar }: Props) {
             <div className="bg-white/5 rounded-2xl p-4">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[10px] uppercase tracking-widest text-white/20 font-bold">Script</p>
-                {activeAvatar.id === 'eth_zero' && (
+                {activeAvatar.id === 'eth_zero' ? (
                   <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold">FOUNDER SCRIPT</span>
+                ) : (
+                  <span className="text-[9px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 font-bold uppercase tracking-widest">Neural Draft</span>
                 )}
               </div>
               <p className="text-xs text-white/50 italic leading-relaxed">
-                {activeAvatar.id === 'eth_zero' 
-                  ? "Nosotros no vendemos software. Vendemos tiempo. 15 horas semanales recuperadas. Cero fricción. EtherAgent OS: tu C-Suite autônomo."
-                  : "La ineficiencia es el mayor coste de cualquier startup B2B. EtherAgent OS no es software, es tu nuevo C-Suite autónomo."}
+                "{campaignScript}"
               </p>
             </div>
             <div className="flex gap-4 text-[10px] text-white/20">
@@ -394,10 +451,10 @@ export default function BroadcasterLab({ selectedAvatar }: Props) {
                       <span className="text-white text-xs font-semibold">etheragent.ai</span>
                       <span className="text-white/40 text-[10px]">{isPlayingRealVideo ? 'Ahora' : '14h'}</span>
                     </div>
-                    <p className="text-white text-[11px]">
-                      {isPlayingRealVideo 
+                    <p className="text-white text-[11px] line-clamp-2">
+                      {campaignData?.hook || (isPlayingRealVideo 
                         ? "El futuro del marketing B2B es hoy #NeuralAgent #AIMarketing" 
-                        : "El futuro de las agencias B2B es hoy. #NeuralAgent #B2B #AI"}
+                        : "El futuro de las agencias B2B es hoy. #NeuralAgent #B2B #AI")}
                     </p>
                     <div className="flex items-center gap-3">
                       <div className="flex-1 bg-white/10 rounded-full px-3 py-2">
@@ -419,10 +476,10 @@ export default function BroadcasterLab({ selectedAvatar }: Props) {
                           </div>
                           <span className="text-white text-xs font-bold">@EtherAgentOS</span>
                         </div>
-                        <p className="text-white/70 text-[10px]">
-                          {isPlayingRealVideo 
+                        <p className="text-white/70 text-[10px] line-clamp-3">
+                          {campaignData?.hook || (isPlayingRealVideo 
                             ? "El futuro del marketing B2B es hoy #NeuralAgent #AIMarketing" 
-                            : "El futuro de las agencias B2B es hoy. #NeuralAgent #B2B #AI"}
+                            : "El futuro de las agencias B2B es hoy. #NeuralAgent #B2B #AI")}
                         </p>
                         <div className="flex items-center gap-1">
                           <Play size={10} className="text-white/40" />
@@ -466,10 +523,10 @@ export default function BroadcasterLab({ selectedAvatar }: Props) {
                         Seguir
                       </button>
                     </div>
-                    <p className="text-white/60 text-xs">
-                      {isPlayingRealVideo 
+                    <p className="text-white/60 text-xs line-clamp-2">
+                      {campaignData?.hook || (isPlayingRealVideo 
                         ? "El futuro del marketing B2B es hoy. EtherAgent OS - Tu C-Suite autónomo." 
-                        : "Estamos eliminando el factor error en la prospección masiva. Únete a la lista de espera de EtherAgent OS."}
+                        : "Estamos eliminando el factor error en la prospección masiva. Únete a la lista de espera de EtherAgent OS.")}
                     </p>
                     {isPlayingRealVideo && (
                       <div className="flex items-center justify-between pt-2 border-t border-white/10">

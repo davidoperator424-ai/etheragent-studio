@@ -1,5 +1,9 @@
-import { useState } from 'react';
-import { MessageSquare, Send, Radio, PenTool, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { supabase } from '@/lib/supabaseClient';
+import { useAuth } from '@/contexts/AuthContext';
+import { MessageSquare, Send, Radio, PenTool, Loader2, Brain, Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface Draft {
   title: string;
@@ -14,6 +18,13 @@ interface Comment {
   created_utc: number;
 }
 
+interface CampaignRecord {
+  id: string;
+  target_url: string;
+  detected_sector: string;
+  campaign_data: any;
+}
+
 const sentimentEmoji = {
   positive: '🟢',
   neutral: '🟡',
@@ -21,6 +32,9 @@ const sentimentEmoji = {
 };
 
 export default function CommunityLab() {
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+  const [campaign, setCampaign] = useState<CampaignRecord | null>(null);
   const [topic, setTopic] = useState('');
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [selectedDraft, setSelectedDraft] = useState<Draft | null>(null);
@@ -29,6 +43,32 @@ export default function CommunityLab() {
   const [replyText, setReplyText] = useState('');
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchCampaign = async () => {
+      if (!user) return;
+      const campaignId = searchParams.get('campaign');
+      try {
+        let data, error;
+        if (campaignId) {
+          const res = await supabase.from('nexus_youtube_ads').select('*').eq('id', campaignId).single();
+          data = res.data;
+          error = res.error;
+        } else {
+          const res = await supabase.from('nexus_youtube_ads').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).single();
+          data = res.data;
+          error = res.error;
+        }
+        if (data) {
+          setCampaign(data as CampaignRecord);
+          setTopic(`Advantages of using EtherAgent for ${new URL(data.target_url).hostname}`);
+        }
+      } catch (err) {
+        console.error('Error fetching campaign:', err);
+      }
+    };
+    fetchCampaign();
+  }, [searchParams, user]);
 
   const handleGenerate = async () => {
     if (!topic.trim()) return;
@@ -139,7 +179,23 @@ You're probably right that we'll see consolidation. That's how every market matu
   return (
     <div className="min-h-screen bg-[#050505] text-white p-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-black tracking-tighter uppercase mb-8">Community Lab</h1>
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 border-b border-white/5 pb-8">
+          <div>
+            <h1 className="text-4xl font-black tracking-tighter uppercase mb-2">Community Lab</h1>
+            <p className="text-zinc-500 font-mono text-xs tracking-widest uppercase">Neural Discourse Engine • Multi-platform Influence</p>
+          </div>
+          {campaign && (
+            <div className="flex items-center gap-3 px-5 py-2.5 bg-white/5 border border-white/10 rounded-2xl shadow-xl">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                <Brain size={20} className="text-indigo-400" />
+              </div>
+              <div>
+                <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest leading-none mb-1">Target Context</p>
+                <p className="text-sm font-bold text-white leading-none">{new URL(campaign.target_url).hostname}</p>
+              </div>
+            </div>
+          )}
+        </header>
 
         {error && (
           <div className="mb-6 p-4 bg-red-900/20 backdrop-blur-md border border-red-500/30 rounded-xl text-red-200 text-sm">

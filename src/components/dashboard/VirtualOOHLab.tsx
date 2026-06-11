@@ -1,22 +1,34 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabaseClient';
 import { useVoiceStore } from '@/store/useVoiceStore';
 import { useCampaignStore } from '@/store/useCampaignStore';
 import { useTokenBalance } from '@/hooks/useTokenBalance';
 import { useAuth } from '@/contexts/AuthContext';
-import { MonitorPlay, Sparkles, Zap, Loader2, Upload, Play, ArrowRight } from 'lucide-react';
+import { MonitorPlay, Sparkles, Zap, Loader2, Upload, Play, ArrowRight, Brain } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+interface CampaignRecord {
+  id: string;
+  target_url: string;
+  detected_sector: string;
+  strategy_score: number;
+  campaign_data: any;
+  created_at: string;
+}
 
 export default function VirtualOOHLab() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { balance } = useTokenBalance();
   const { user } = useAuth();
+  const setWorkspace = useCampaignStore(state => state.setWorkspace);
   const isDemo = location.state?.isDemo === true;
   const isFullDemo = location.state?.isFullDemo === true;
   const nextStep = location.state?.nextStep;
 
+  const [campaign, setCampaign] = useState<CampaignRecord | null>(null);
   const [billboardUrl, setBillboardUrl] = useState<string | null>(null);
   const [isVideo, setIsVideo] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -27,14 +39,48 @@ export default function VirtualOOHLab() {
   const [chatStep, setChatStep] = useState(1);
   const [chatMessages, setChatMessages] = useState<{role: 'user' | 'assistant', content: string, typing?: boolean}[]>([]);
   
-  const valeriaMsg1 = "🏙️ Analizando geometría del activo 'Mafia Aviar'. Preparando adaptación para pantallas de gran formato (Times Square / Shibuya).";
-  const valeriaMsg2 = "📐 Calculando perspectiva anamórfica 3D (Efecto 'Out of Box'). Extruyendo elementos de primer plano: Humo volumétrico y vasos de cristal para ilusión de profundidad.";
-  const valeriaMsg3 = "✅ Renderizado volumétrico completado. Simulando tráfico peatonal. Impacto visual estimado: +450% de retención frente a vallas tradicionales. Presiona Play para visualizar.";
+  useEffect(() => {
+    const fetchCampaign = async () => {
+      if (!user) return;
+      const campaignId = searchParams.get('campaign');
+      try {
+        let data, error;
+        if (campaignId) {
+          const res = await supabase.from('nexus_youtube_ads').select('*').eq('id', campaignId).single();
+          data = res.data;
+          error = res.error;
+        } else {
+          const res = await supabase.from('nexus_youtube_ads').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).single();
+          data = res.data;
+          error = res.error;
+        }
+        if (data) {
+          setCampaign(data as CampaignRecord);
+          setWorkspace(data.campaign_data);
+        }
+      } catch (err) {
+        console.error('Error fetching campaign:', err);
+      }
+    };
+    fetchCampaign();
+  }, [searchParams, user, setWorkspace]);
+
+  const campaignData = campaign?.campaign_data;
+
+  const valeriaMsg1 = campaignData?.hook 
+    ? `🏙️ Analizando hook neural: "${campaignData.hook}". Preparando adaptación para pantallas de gran formato (Times Square / Shibuya).`
+    : "🏙️ Analizando geometría del activo publicitario. Preparando adaptación para pantallas de gran formato (Times Square / Shibuya).";
+  
+  const valeriaMsg2 = campaignData?.narrative_body
+    ? `📐 Integrando narrativa B2B: "${campaignData.narrative_body.substring(0, 150)}...". Calculando perspectiva anamórfica 3D (Efecto 'Out of Box').`
+    : "📐 Calculando perspectiva anamórfica 3D (Efecto 'Out of Box'). Extruyendo elementos de primer plano para ilusión de profundidad.";
+  
+  const valeriaMsg3 = "✅ Renderizado volumétrico completado. Simulando tráfico peatonal masivo. Impacto visual estimado: +450% de retención frente a vallas tradicionales. Presiona Play para visualizar.";
 
   const { speak, stopSpeaking, isSpeaking } = useVoiceStore();
   const workspace = useCampaignStore((state) => state.workspace);
 
-  // Fetch inicial de Supabase
+  // Fetch inicial de Supabase para assets visuales
   useEffect(() => {
     const fetchAsset = async () => {
       const { data } = await supabase
@@ -140,13 +186,21 @@ export default function VirtualOOHLab() {
               </p>
             </div>
           </div>
+          {campaign && (
+            <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-2xl">
+              <Brain size={14} className="text-orange-500" />
+              <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest">
+                Context: {new URL(campaign.target_url).hostname}
+              </span>
+            </div>
+          )}
         </header>
 
-        <div className="flex-1 bg-[#0a0a0c] border border-white/5 rounded-3xl p-8 flex flex-col relative overflow-visible">
+        <div className="flex-1 bg-[#0a0a0c] border border-white/5 rounded-3xl p-8 flex flex-col relative overflow-visible shadow-2xl">
           <div className="flex items-start gap-2 mb-8">
             <Sparkles size={16} className="text-orange-500 mt-0.5 shrink-0" />
             <span className="text-orange-500 text-[10px] font-mono tracking-widest uppercase break-words pr-4">
-              {workspace ? `Prompt Base: ${workspace.visual_description}` : "Nodo: Neo-Shibuya"}
+              {campaignData?.detected_sector ? `Sector: ${campaignData.detected_sector}` : "Nodo: Neo-Shibuya"}
             </span>
           </div>
 
@@ -155,14 +209,14 @@ export default function VirtualOOHLab() {
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-zinc-900/50 backdrop-blur-md border border-white/10 p-6 rounded-2xl rounded-tl-sm w-[90%] mb-6"
+                className="bg-zinc-900/50 backdrop-blur-md border border-white/10 p-6 rounded-2xl rounded-tl-sm w-[95%] mb-6"
               >
-                <p className="text-zinc-300 text-sm font-medium mb-3 flex items-center gap-2">
+                <p className="text-zinc-300 text-[10px] font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
                   <Sparkles size={14} className="text-orange-500" />
-                  Análisis de Activo Volumétrico
+                  Estrategia Creativa B2B
                 </p>
-                <div className="p-3 bg-black/60 border border-orange-500/20 rounded-lg font-mono text-xs text-orange-400 leading-relaxed whitespace-pre-wrap">
-                  🏙️ Analizando geometría del activo 'Mafia Aviar'. Preparando adaptación para pantallas de gran formato (Times Square / Shibuya).
+                <div className="p-4 bg-black/60 border border-orange-500/20 rounded-lg font-mono text-xs text-orange-400 leading-relaxed italic">
+                  {campaignData?.creative_rationale || "Analizando geometría del activo publicitario. Preparando adaptación para pantallas de gran formato (Times Square / Shibuya)."}
                 </div>
               </motion.div>
 
@@ -170,21 +224,10 @@ export default function VirtualOOHLab() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="bg-orange-900/20 border border-orange-500/20 p-6 rounded-2xl rounded-tr-sm w-[85%] self-end mb-6"
+                className="bg-orange-900/10 border border-orange-500/20 p-6 rounded-2xl rounded-tr-sm w-[90%] self-end mb-6"
               >
-                <p className="text-base text-orange-100 leading-relaxed">
-                  📐 Calculando perspectiva anamórfica 3D (Efecto 'Out of Box'). Extruyendo elementos de primer plano: Humo volumétrico y vasos de cristal para ilusión de profundidad.
-                </p>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="bg-zinc-900/50 border border-orange-500/30 p-6 rounded-2xl rounded-tl-sm w-[90%] mb-6"
-              >
-                <p className="text-base text-white leading-relaxed font-medium">
-                  ✅ Renderizado volumétrico completado. Simulando tráfico peatonal. Impacto visual estimado: +450% de retención. Presiona Play para visualizar.
+                <p className="text-sm text-orange-100/80 leading-relaxed font-medium">
+                  {campaignData?.narrative_body || "Calculando perspectiva anamórfica 3D (Efecto 'Out of Box'). Extruyendo elementos de primer plano para ilusión de profundidad."}
                 </p>
               </motion.div>
             </>
@@ -195,9 +238,9 @@ export default function VirtualOOHLab() {
               key={idx}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`bg-zinc-900/50 border border-white/10 p-6 rounded-2xl ${msg.role === 'user' ? 'rounded-tr-sm w-[85%] self-end mb-6 border-orange-500/20' : 'rounded-tl-sm w-[90%] mb-6'} ${msg.typing ? 'border-orange-500/30' : ''}`}
+              className={`bg-zinc-900/50 border border-white/10 p-6 rounded-2xl ${msg.role === 'user' ? 'rounded-tr-sm w-[85%] self-end mb-6 border-orange-500/20' : 'rounded-tl-sm w-[95%] mb-6'} ${msg.typing ? 'border-orange-500/30' : ''}`}
             >
-              <p className="text-base text-zinc-300 leading-relaxed">
+              <p className="text-sm text-zinc-300 leading-relaxed">
                 {msg.content}
                 {msg.typing && <span className="inline-flex ml-1"><span className="animate-pulse">▊</span></span>}
               </p>
@@ -205,16 +248,16 @@ export default function VirtualOOHLab() {
           ))}
 
           {chatStep === 2 && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-zinc-900/50 border border-orange-500/30 p-6 rounded-2xl rounded-tl-sm w-[90%] mb-6 relative overflow-hidden">
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-zinc-900/50 border border-orange-500/30 p-6 rounded-2xl rounded-tl-sm w-[95%] mb-6 relative overflow-hidden">
               <div className="absolute top-0 left-0 w-1 h-full bg-orange-500" />
-              <p className="text-base text-white leading-relaxed font-medium">
-                Despliegue holográfico activo. Verifica el panel físico a tu derecha.
+              <p className="text-sm text-white leading-relaxed font-black italic">
+                {campaignData?.hook ? `"${campaignData.hook}"` : "Despliegue holográfico activo. Verifica el panel físico a tu derecha."}
               </p>
             </motion.div>
           )}
 
           <div className="mt-auto grid grid-cols-2 gap-4">
-            <button onClick={handleCompile} disabled={isCompiling || chatStep === 2} className="bg-[#111] hover:bg-zinc-800 border border-white/5 p-4 rounded-xl flex items-center justify-center gap-3 text-sm font-bold text-zinc-300 transition-colors">
+            <button onClick={handleCompile} disabled={isCompiling || chatStep === 2} className="bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-xl flex items-center justify-center gap-3 text-xs font-bold uppercase tracking-widest text-zinc-300 transition-all active:scale-95 shadow-xl">
               {isCompiling ? <Loader2 size={18} className="text-orange-500 animate-spin" /> : <Zap size={18} className="text-orange-500" />} Encender Valla
             </button>
           </div>

@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import {
   Target, Send, CheckCircle2, Sparkles, Play, Pause,
   TrendingUp, DollarSign, MousePointer, BarChart3,
-  Smartphone, Heart, MessageCircle, Share2, MoreHorizontal, Loader2
+  Smartphone, Heart, MessageCircle, Share2, MoreHorizontal, Loader2, Brain
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { usePerformanceMetrics } from '@/hooks/usePerformanceMetrics';
 import { useVoiceStore } from '@/store/useVoiceStore';
+import { useAuth } from '@/contexts/AuthContext';
 
 const AGENT_INFO = {
   name: "Performance AI",
@@ -18,6 +19,15 @@ const AGENT_INFO = {
 };
 
 type Message = { id: string; sender: 'ai' | 'user'; text: string; hasWidget?: boolean };
+
+interface CampaignRecord {
+  id: string;
+  target_url: string;
+  detected_sector: string;
+  strategy_score: number;
+  campaign_data: any;
+  created_at: string;
+}
 
 interface AIVoiceBubbleProps {
   message: Message;
@@ -70,12 +80,44 @@ interface PerformanceAdsLabProps {
 
 export default function PerformanceAdsLab({ isDemoMode: propDemoMode = false }: PerformanceAdsLabProps) {
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
   const isDemo = propDemoMode || location.state?.isDemo === true;
   
   const { metrics, isLoading: metricsLoading } = usePerformanceMetrics();
+  const setWorkspace = useCampaignStore(state => state.setWorkspace);
+  const [campaign, setCampaign] = useState<CampaignRecord | null>(null);
   const [adUrl, setAdUrl] = useState<string | null>(null);
   const [assetLoading, setAssetLoading] = useState(true);
   const { speak, stopSpeaking, isSpeaking } = useVoiceStore();
+
+  useEffect(() => {
+    const fetchCampaign = async () => {
+      if (!user) return;
+      const campaignId = searchParams.get('campaign');
+      try {
+        let data, error;
+        if (campaignId) {
+          const res = await supabase.from('nexus_youtube_ads').select('*').eq('id', campaignId).single();
+          data = res.data;
+          error = res.error;
+        } else {
+          const res = await supabase.from('nexus_youtube_ads').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).single();
+          data = res.data;
+          error = res.error;
+        }
+        if (data) {
+          setCampaign(data as CampaignRecord);
+          setWorkspace(data.campaign_data);
+        }
+      } catch (err) {
+        console.error('Error fetching campaign:', err);
+      }
+    };
+    fetchCampaign();
+  }, [searchParams, user, setWorkspace]);
+
+  const campaignData = campaign?.campaign_data;
 
   useEffect(() => {
     const fetchAsset = async () => {
@@ -125,6 +167,20 @@ export default function PerformanceAdsLab({ isDemoMode: propDemoMode = false }: 
       hasWidget: true
     }
   ]);
+
+  useEffect(() => {
+    if (campaignData?.hook) {
+      setMessages(prev => [
+        {
+          id: '0',
+          sender: 'ai',
+          text: `Detectando Hook de alto impacto: "${campaignData.hook}". Generando variaciones para LinkedIn Ads con un enfoque en el sector ${campaignData.detected_sector || 'B2B'}.`
+        },
+        ...prev
+      ]);
+    }
+  }, [campaignData]);
+
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
@@ -215,9 +271,17 @@ export default function PerformanceAdsLab({ isDemoMode: propDemoMode = false }: 
               <p className="text-xs text-zinc-400 font-mono">{AGENT_INFO.role}</p>
             </div>
           </div>
-          <div className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2">
-            <Sparkles size={12} className="text-emerald-400" />
-            <span className="text-[10px] text-emerald-400 font-mono uppercase tracking-widest">Active Session</span>
+          <div className="flex items-center gap-3">
+            {campaign && (
+              <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full">
+                <Brain size={12} className="text-emerald-500" />
+                <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest">{new URL(campaign.target_url).hostname}</span>
+              </div>
+            )}
+            <div className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2">
+              <Sparkles size={12} className="text-emerald-400" />
+              <span className="text-[10px] text-emerald-400 font-mono uppercase tracking-widest">Active Session</span>
+            </div>
           </div>
         </div>
 
@@ -318,10 +382,10 @@ export default function PerformanceAdsLab({ isDemoMode: propDemoMode = false }: 
 
               {/* Ad Copy */}
               <div className="px-3 py-2">
-                <p className="text-zinc-200 text-xs leading-relaxed">
-                  🚀 <span className="font-semibold">The Death of Traditional Video Production</span><br />
-                  Stop spending $50K on video shoots. EtherAgent OS compiles AI campaigns in minutes.
-                  {' '}<span className="text-emerald-600 font-medium">Book your demo today.</span>
+                <p className="text-zinc-200 text-xs leading-relaxed line-clamp-4">
+                  🚀 <span className="font-semibold">{campaignData?.hook || 'The Death of Traditional Video Production'}</span><br />
+                  {campaignData?.narrative_body || 'Stop spending $50K on video shoots. EtherAgent OS compiles AI campaigns in minutes.'}
+                  {' '}<span className="text-emerald-600 font-medium">{campaignData?.call_to_action || 'Book your demo today.'}</span>
                 </p>
               </div>
 
@@ -398,7 +462,7 @@ export default function PerformanceAdsLab({ isDemoMode: propDemoMode = false }: 
                     </div>
                   </div>
                   <button className="px-3 py-1 bg-emerald-600 text-white text-[10px] font-bold rounded-full">
-                    Learn More
+                    {campaignData?.call_to_action ? 'Learn More' : 'Book Demo'}
                   </button>
                 </div>
               </div>
