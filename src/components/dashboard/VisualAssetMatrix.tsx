@@ -110,7 +110,7 @@ export default function VisualAssetMatrix() {
         .upload(filePath, file, { upsert: true });
 
       if (uploadError) {
-        // Fallback to legacy bucket if new one doesn't exist
+        console.warn(`⚠️ Intento en '${BUCKET_NAME}' falló: ${uploadError.message}. Iniciando Fallback a 'visual-assets'...`);
         if (uploadError.message?.includes('bucket') || uploadError.message?.includes('not found')) {
           const legacyPath = `${assetId}-${timestamp}.${fileExt}`;
           const { error: legacyError } = await supabase.storage
@@ -212,6 +212,15 @@ export default function VisualAssetMatrix() {
   const injectIntoSocialLab = (assetId: string) => {
     const meta = assetMeta[assetId];
     if (meta) {
+      console.table({
+        'Acción': 'Inyectando a Zustand',
+        'Asset ID': meta.assetId,
+        'Tipo': meta.assetType,
+        'Prompt': meta.visualPrompt ? 'Presente' : 'Ausente',
+        'URL': meta.url?.substring(0, 50) + '...',
+        'Archivo': meta.fileName || 'N/A',
+        'Tamaño': meta.fileSize ? `${(meta.fileSize / 1024 / 1024).toFixed(1)}MB` : 'N/A',
+      });
       setSelectedVideo(meta);
       toast.success('Asset inyectado en el Social Lab');
       navigate('/dashboard/social');
