@@ -377,33 +377,56 @@ export default function SocialLab() {
   const data = campaign.campaign_data;
 
   const ReelOverlay = ({ hasMedia }: { hasMedia: boolean }) => (
-    <div className={`absolute inset-0 z-20 flex flex-col justify-between ${hasMedia ? 'pointer-events-none bg-gradient-to-b from-black/30 via-transparent to-black/60' : ''}`}>
+    <div className={`absolute inset-0 z-20 flex flex-col justify-between ${hasMedia ? 'pointer-events-none' : ''}`}>
+      {/* Gradient overlay (subtle) */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/70 pointer-events-none" />
       {/* Top */}
-      <div className="flex justify-between items-start p-4 pt-10">
-        <span className="text-white font-bold text-lg drop-shadow-md">Para ti</span>
-        <div className="w-8 h-8 flex items-center justify-center bg-black/40 backdrop-blur rounded-full"><Sparkles size={16} className="text-white" /></div>
-      </div>
-      {/* Bottom */}
-      <div className="flex justify-between items-end p-4 pb-6">
-        <div className="flex flex-col gap-2 max-w-[65%]">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-indigo-500 flex items-center justify-center text-[10px] font-bold text-white">EA</div>
-            <span className="text-white font-bold text-sm drop-shadow-md">@EtherAgent</span>
-          </div>
-          <p className="text-white/90 text-xs drop-shadow-md line-clamp-2 leading-relaxed">{currentAsset?.hook || currentAsset?.visual_description?.substring(0, 80) || 'Campaña AI generada'}</p>
-          <div className="flex items-center gap-1.5 mt-1">
-            <div className="w-4 h-4 rounded-full bg-zinc-800 flex items-center justify-center"><div className="w-2 h-2 rounded-full bg-white" /></div>
-            <span className="text-white/70 text-[10px]">Sunset Vibes · {currentAsset?.call_to_action || 'EtherAgent'}</span>
+      <div className="relative flex justify-between items-start p-4 pt-12 z-10">
+        <div className="flex items-center gap-1">
+          <span className="text-white font-bold text-base tracking-tight drop-shadow-xl">Para ti</span>
+          <div className="w-1 h-1 rounded-full bg-white/40 mt-1.5" />
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 flex items-center justify-center">
+            <svg viewBox="0 0 24 24" className="w-6 h-6 text-white drop-shadow-xl" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="10" cy="10" r="7" />
+              <line x1="15" y1="15" x2="21" y2="21" />
+            </svg>
           </div>
         </div>
-        <div className="flex flex-col items-center gap-5 pb-1">
-          {[{ icon: Heart, count: '1.2M' }, { icon: MessageCircle, count: '45K' }, { icon: Bookmark, count: '8K' }, { icon: Share2, count: '11K' }].map(({ icon: Icon, count }) => (
+      </div>
+      {/* Bottom */}
+      <div className="relative flex justify-between items-end p-4 pb-8 z-10">
+        <div className="flex flex-col gap-2 max-w-[65%]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 via-emerald-300 to-indigo-500 flex items-center justify-center text-[10px] font-bold text-white shadow-lg shrink-0 ring-2 ring-white/20">EA</div>
+            <span className="text-white font-bold text-sm drop-shadow-xl">@EtherAgent</span>
+          </div>
+          <p className="text-white/90 text-xs drop-shadow-xl line-clamp-2 leading-relaxed font-medium">
+            {currentAsset?.hook || currentAsset?.visual_description?.substring(0, 80) || 'Campaña AI generada'}
+          </p>
+          <div className="flex items-center gap-2 mt-1">
+            <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center backdrop-blur relative overflow-hidden">
+              <svg viewBox="0 0 24 24" className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 18V5l12-2v13" />
+                <circle cx="6" cy="18" r="3" />
+                <circle cx="18" cy="16" r="3" />
+              </svg>
+              <div className="absolute inset-0 rounded-full border-t border-white/30" style={{ animation: 'spin 3s linear infinite' }} />
+            </div>
+            <span className="text-white/70 text-[10px] font-medium drop-shadow-xl">Sunset Vibes · {currentAsset?.call_to_action || 'EtherAgent'}</span>
+          </div>
+        </div>
+        <div className="flex flex-col items-center gap-[18px] pb-1">
+          {[{ icon: Heart, count: '1.2M', active: false }, { icon: MessageCircle, count: '45K', active: false }, { icon: Bookmark, count: '8K', active: false }, { icon: Share2, count: '11K', active: false }].map(({ icon: Icon, count, active }) => (
             <div key={count} className="flex flex-col items-center gap-0.5">
-              <div className="w-10 h-10 bg-black/30 backdrop-blur rounded-full flex items-center justify-center"><Icon size={20} className="text-white" fill="white" /></div>
-              <span className="text-white text-[10px] font-semibold drop-shadow-md">{count}</span>
+              <div className="w-11 h-11 flex items-center justify-center group cursor-pointer transition-transform active:scale-90">
+                <Icon size={24} className={`drop-shadow-xl transition-colors ${active ? 'text-red-500 fill-red-500' : 'text-white'}`} />
+              </div>
+              <span className="text-white text-[10px] font-semibold drop-shadow-xl leading-none">{count}</span>
             </div>
           ))}
-          <div className="w-10 h-10 rounded-full bg-black/30 backdrop-blur flex items-center justify-center overflow-hidden border-2 border-white/30">
+          <div className="w-11 h-11 rounded-full flex items-center justify-center overflow-hidden border-[3px] border-emerald-400/70 mt-1">
             <img src="https://images.unsplash.com/photo-1531746790094-e5ef0f0e7b3e?auto=format&fit=crop&q=80&w=100" className="w-full h-full object-cover" alt="profile" />
           </div>
         </div>
@@ -414,15 +437,22 @@ export default function SocialLab() {
   const FeedOverlay = ({ hasMedia }: { hasMedia: boolean }) => (
     <div className={`absolute inset-0 z-20 flex flex-col ${hasMedia ? '' : 'justify-center'}`}>
       {/* Top bar */}
-      <div className="flex items-center justify-between px-3 py-2.5 z-30">
+      <div className="flex items-center justify-between px-3 py-3 z-30 bg-gradient-to-b from-black/60 to-transparent">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400 to-indigo-500 flex items-center justify-center text-[8px] font-bold text-white ring-2 ring-emerald-400/50 ring-offset-1 ring-offset-black">EA</div>
-          <div>
-            <span className="text-white text-[11px] font-bold leading-none block">etheragent</span>
-            <span className="text-zinc-400 text-[9px] leading-none">EtherAgent · {currentAsset?.duration || '30s'}</span>
+          <div className="w-8 h-8 rounded-full p-[2px] bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 flex items-center justify-center shrink-0">
+            <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
+              <span className="text-[9px] font-bold text-white">EA</span>
+            </div>
+          </div>
+          <div className="flex flex-col leading-tight">
+            <div className="flex items-center gap-1.5">
+              <span className="text-white text-[12px] font-semibold">etheragent</span>
+              <span className="text-blue-400 text-[10px]">• Follow</span>
+            </div>
+            <span className="text-zinc-400 text-[9px]">EtherAgent · Sponsored</span>
           </div>
         </div>
-        <MoreHorizontal size={16} className="text-white" />
+        <MoreHorizontal size={18} className="text-white" />
       </div>
       {/* Media area */}
       {hasMedia && (
@@ -445,29 +475,32 @@ export default function SocialLab() {
         </div>
       )}
       {/* Bottom action bar */}
-      <div className="px-3 py-2.5 z-30 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-3">
-            <Heart size={18} className="text-white hover:text-red-400 transition-colors cursor-pointer" />
-            <MessageCircle size={18} className="text-white cursor-pointer" />
-            <Share2 size={18} className="text-white cursor-pointer" />
+      <div className="px-3 pb-2 pt-3 z-30 bg-gradient-to-t from-black/90 via-black/70 to-transparent">
+        <div className="flex items-center justify-between mb-2.5">
+          <div className="flex items-center gap-4">
+            <button className="group transition-transform active:scale-90"><Heart size={20} className="text-white group-hover:text-red-400 transition-colors" /></button>
+            <button className="group transition-transform active:scale-90"><MessageCircle size={20} className="text-white" /></button>
+            <button className="group transition-transform active:scale-90"><Share2 size={20} className="text-white" /></button>
           </div>
-          <Bookmark size={18} className="text-white cursor-pointer" />
+          <button className="group transition-transform active:scale-90"><Bookmark size={20} className="text-white" /></button>
         </div>
-        <div className="flex items-center gap-1.5 mb-1.5">
-          <span className="text-white text-[10px] font-bold">128,431 likes</span>
+        <div className="mb-1.5">
+          <span className="text-white text-[11px] font-bold">128,431 likes</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-white text-[10px] font-bold">etheragent</span>
-          <span className="text-white/80 text-[10px] line-clamp-1">{currentAsset?.hook || currentAsset?.visual_description?.substring(0, 60) || 'Campaña AI generada'}</span>
+        <div className="flex items-start gap-1.5 mb-0.5">
+          <span className="text-white text-[11px] font-semibold shrink-0">etheragent</span>
+          <span className="text-white/80 text-[11px] leading-tight line-clamp-2">{currentAsset?.hook || currentAsset?.visual_description?.substring(0, 80) || 'Campaña AI generada'}</span>
         </div>
-        <span className="text-zinc-500 text-[9px] mt-0.5 block">View all 1,842 comments</span>
-        <div className="flex items-center gap-2 mt-1.5 border-t border-white/10 pt-1.5">
+        <span className="text-zinc-500 text-[10px] block mb-1">View all 1,842 comments</span>
+        <span className="text-zinc-600 text-[9px] block mb-2">2 hours ago</span>
+        <div className="flex items-center gap-2.5 border-t border-white/10 pt-2.5 mt-1">
+          <div className="w-5 h-5 rounded-full bg-gradient-to-br from-emerald-400 to-indigo-500 flex items-center justify-center text-[6px] font-bold text-white shrink-0">EA</div>
           <input type="text" placeholder="Add a comment..."
-            className="flex-1 bg-transparent text-[10px] text-white placeholder-zinc-600 outline-none"
+            className="flex-1 bg-transparent text-[11px] text-white placeholder-zinc-600 outline-none"
             onClick={(e) => e.stopPropagation()} readOnly
           />
-          <button className="text-emerald-400 text-[10px] font-bold opacity-50 cursor-default">Post</button>
+          <button className="text-blue-400 text-[11px] font-semibold opacity-60 cursor-default">Post</button>
+          <button className="text-blue-400 text-[11px] font-semibold opacity-60 cursor-default">😊</button>
         </div>
       </div>
     </div>
@@ -475,29 +508,49 @@ export default function SocialLab() {
 
   const StoryOverlay = ({ hasMedia }: { hasMedia: boolean }) => (
     <div className="absolute inset-0 z-20 flex flex-col">
+      {/* Gradients (top + bottom like real stories) */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/60 pointer-events-none z-10" />
       {/* Progress bar */}
-      <div className="absolute top-3 left-3 right-3 flex gap-1 z-30">
+      <div className="absolute top-3 left-3 right-3 flex gap-1.5 z-30">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="flex-1 h-0.5 bg-white/30 rounded-full overflow-hidden">
-            <div className={`h-full bg-white rounded-full ${i === 0 ? 'w-3/4' : i === 1 ? 'w-1/4' : 'w-0'} transition-all duration-700`} />
+          <div key={i} className="flex-1 h-[3px] bg-white/30 rounded-full overflow-hidden">
+            <div className={`h-full bg-white rounded-full ${i === 0 ? 'w-full' : i === 1 ? 'w-2/5' : 'w-0'} transition-all duration-1000 ease-linear`} />
           </div>
         ))}
       </div>
+      {/* Top info */}
+      <div className="absolute top-8 left-3 right-3 flex items-center justify-between z-30">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 via-emerald-300 to-indigo-500 flex items-center justify-center text-[9px] font-bold text-white shadow-lg ring-2 ring-white/30">EA</div>
+          <div className="flex flex-col leading-tight">
+            <div className="flex items-center gap-1.5">
+              <span className="text-white text-[12px] font-bold drop-shadow-lg">etheragent</span>
+              <span className="text-white/70 text-[9px] drop-shadow-lg">· 2h</span>
+            </div>
+            <span className="text-white/50 text-[8px] drop-shadow-lg uppercase tracking-wider">{currentAsset?.call_to_action || 'EtherAgent'}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <MoreHorizontal size={18} className="text-white drop-shadow-lg" />
+          <X size={18} className="text-white drop-shadow-lg" />
+        </div>
+      </div>
       {/* Bottom CTA */}
       <div className="absolute bottom-6 left-0 right-0 flex flex-col items-center gap-3 px-4 z-30">
-        <div className="w-12 h-0.5 bg-white/30 rounded-full mb-1" />
-        <div className="flex items-center gap-2 w-full">
+        <div className="flex items-center gap-2 w-full max-w-[280px]">
           <input type="text" placeholder="Send message..."
-            className="flex-1 bg-white/10 backdrop-blur border border-white/10 rounded-full py-2 px-4 text-[11px] text-white placeholder-zinc-400 outline-none"
+            className="flex-1 bg-white/15 backdrop-blur-lg border border-white/15 rounded-full py-2.5 px-4 text-[12px] text-white placeholder-zinc-300 outline-none"
             onClick={(e) => e.stopPropagation()} readOnly
           />
-          <button className="w-9 h-9 rounded-full bg-white/10 backdrop-blur border border-white/10 flex items-center justify-center">
+          <button className="w-9 h-9 rounded-full bg-white/15 backdrop-blur-lg border border-white/15 flex items-center justify-center transition-transform active:scale-90">
             <Send size={14} className="text-white -rotate-45 ml-0.5" />
           </button>
         </div>
-        <div className="flex items-center gap-1.5">
-          <ArrowRight size={12} className="text-white/60" />
-          <span className="text-white/60 text-[10px] font-semibold tracking-wider uppercase">Swipe up para más</span>
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur flex items-center justify-center animate-pulse">
+            <ArrowRight size={14} className="text-white" />
+          </div>
+          <span className="text-white/80 text-[11px] font-semibold tracking-wider uppercase drop-shadow-lg">Swipe up</span>
         </div>
       </div>
     </div>
