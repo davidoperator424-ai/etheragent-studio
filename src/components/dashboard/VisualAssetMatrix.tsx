@@ -8,10 +8,11 @@ import {
   Upload, Loader2, CheckCircle2, Image as ImageIcon,
   Target, Globe, Activity, DollarSign, Layout,
   MonitorPlay, Film, Smartphone, Zap, Play, ShieldAlert,
-  Sparkles, AlertCircle, Video
+  Sparkles, AlertCircle, Video, FileVideo, FileImage, Trash2, Download
 } from 'lucide-react';
 import { toast } from 'sonner';
 import GlassCard from '@/components/GlassCard';
+import { SelectedVideoMeta } from '@/store/useCampaignStore';
 
 // ── Fal.ai Configuration (parametrizable) ──
 const FAL_AI_MODEL = 'fal-ai/luma-dream-machine';
@@ -49,6 +50,9 @@ export default function VisualAssetMatrix() {
   const [uploadedAssets, setUploadedAssets] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<'ecommerce' | 'saas' | 'fintech' | 'web3'>('ecommerce');
   const [generatingAll, setGeneratingAll] = useState(false);
+  const [dragOverAssetId, setDragOverAssetId] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [assetMeta, setAssetMeta] = useState<Record<string, SelectedVideoMeta>>({});
   const { tokens } = useTokenStore();
   const setSelectedVideo = useCampaignStore(state => state.setSelectedVideo);
   const workspace = useCampaignStore(state => state.workspace);
@@ -57,44 +61,162 @@ export default function VisualAssetMatrix() {
 
   const visualPrompt = workspace?.visual_description || '';
 
+  const BUCKET_NAME = 'campaign_assets';
+
   useEffect(() => {
     const checkExistingAssets = async () => {
-      const { data } = await supabase.from('visual_assets').select('id, url').like('id', 'demo_%');
+      const { data } = await supabase
+        .from('visual_assets')
+        .select('id, url, file_name, file_type, file_size, asset_type, visual_prompt, thumbnail_url, bucket_path')
+        .like('id', 'demo_%');
       if (data) {
         const uploaded: Record<string, string> = {};
-        data.forEach(item => { if (item.url) uploaded[item.id] = item.url; });
+        const meta: Record<string, SelectedVideoMeta> = {};
+        data.forEach(item => {
+          if (item.url) {
+            uploaded[item.id] = item.url;
+            meta[item.id] = {
+              url: item.url,
+              thumbnail: item.thumbnail_url || item.url,
+              assetId: item.id,
+              assetType: item.asset_type || 'uploaded',
+              visualPrompt: item.visual_prompt || undefined,
+              fileName: item.file_name || undefined,
+              fileType: item.file_type || undefined,
+              fileSize: item.file_size || undefined,
+            };
+          }
+        });
         setUploadedAssets(uploaded);
+        setAssetMeta(prev => ({ ...prev, ...meta }));
       }
     };
     checkExistingAssets();
   }, []);
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, assetId: string) => {
+  const uploadFile = async (file: File, assetId: string) => {
+    setLoadingIds(prev => ({ ...prev, [assetId]: 'uploading' }));
+    setUploadProgress(prev => ({ ...prev, [assetId]: 0 }));
+
     try {
-      const file = event.target.files?.[0];
-      if (!file) return;
-      setLoadingIds(prev => ({ ...prev, [assetId]: 'uploading' }));
-
       const fileExt = file.name.split('.').pop();
-      const fileName = `${assetId}-${Date.now()}.${fileExt}`;
+      const timestamp = Date.now();
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const filePath = `uploads/${assetId}/${timestamp}_${safeName}`;
 
-      const { error: uploadError } = await supabase.storage.from('visual-assets').upload(fileName, file);
-      if (uploadError) throw uploadError;
+      // Upload with upsert
+      const { error: uploadError } = await supabase.storage
+        .from(BUCKET_NAME)
+        .upload(filePath, file, { upsert: true });
 
-      const { data: { publicUrl } } = supabase.storage.from('visual-assets').getPublicUrl(fileName);
-      await supabase.from('visual_assets').upsert({ id: assetId, url: publicUrl, updated_at: new Date() });
+      if (uploadError) {
+        // Fallback to legacy bucket if new one doesn't exist
+        if (uploadError.message?.includes('bucket') || uploadError.message?.includes('not found')) {
+          const legacyPath = `${assetId}-${timestamp}.${fileExt}`;
+          const { error: legacyError } = await supabase.storage
+            .from('visual-assets')
+            .upload(legacyPath, file, { upsert: true });
+          if (legacyError) throw legacyError;
+          const { data: { publicUrl } } = supabase.storage.from('visual-assets').getPublicUrl(legacyPath);
+          await saveAssetRecord(assetId, publicUrl, file, filePath);
+          return;
+        }
+        throw uploadError;
+      }
 
-      setUploadedAssets(prev => ({ ...prev, [assetId]: publicUrl }));
-      toast.success('Asset subido correctamente');
+      const { data: { publicUrl } } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
+      await saveAssetRecord(assetId, publicUrl, file, filePath);
+      toast.success(`${file.name} subido correctamente`);
+
     } catch (error) {
-      console.error('Error:', error);
-      toast.error('Error al subir el asset visual.');
+      const message = error instanceof Error ? error.message : 'Error al subir el archivo';
+      console.error('Upload error:', message);
+      toast.error(message);
     } finally {
       setLoadingIds(prev => {
         const next = { ...prev };
         delete next[assetId];
         return next;
       });
+      setUploadProgress(prev => {
+        const next = { ...prev };
+        delete next[assetId];
+        return next;
+      });
+    }
+  };
+
+  const saveAssetRecord = async (assetId: string, publicUrl: string, file: File, bucketPath: string) => {
+    const meta: SelectedVideoMeta = {
+      url: publicUrl,
+      thumbnail: publicUrl,
+      assetId,
+      assetType: 'uploaded',
+      fileName: file.name,
+      fileType: file.type,
+      fileSize: file.size,
+      visualPrompt: visualPrompt || undefined,
+    };
+
+    await supabase.from('visual_assets').upsert({
+      id: assetId,
+      url: publicUrl,
+      user_id: (await supabase.auth.getUser()).data.user?.id || null,
+      file_name: file.name,
+      file_type: file.type,
+      file_size: file.size,
+      asset_type: 'uploaded',
+      visual_prompt: visualPrompt || null,
+      thumbnail_url: publicUrl,
+      bucket_path: bucketPath,
+      updated_at: new Date(),
+    });
+
+    setUploadedAssets(prev => ({ ...prev, [assetId]: publicUrl }));
+    setAssetMeta(prev => ({ ...prev, [assetId]: meta }));
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, assetId: string) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await uploadFile(file, assetId);
+  };
+
+  const handleDrop = async (e: React.DragEvent, assetId: string) => {
+    e.preventDefault();
+    setDragOverAssetId(null);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    const validTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'image/jpeg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('Formato no soportado. Usa MP4, WebM, JPG o PNG.');
+      return;
+    }
+    if (file.size > 104857600) {
+      toast.error('El archivo excede el límite de 100MB.');
+      return;
+    }
+    await uploadFile(file, assetId);
+  };
+
+  const handleDragOver = (e: React.DragEvent, assetId: string) => {
+    e.preventDefault();
+    setDragOverAssetId(assetId);
+  };
+
+  const handleDragLeave = (e: React.DragEvent, assetId: string) => {
+    e.preventDefault();
+    setDragOverAssetId(prev => prev === assetId ? null : prev);
+  };
+
+  const injectIntoSocialLab = (assetId: string) => {
+    const meta = assetMeta[assetId];
+    if (meta) {
+      setSelectedVideo(meta);
+      toast.success('Asset inyectado en el Social Lab');
+      navigate('/dashboard/social');
+    } else {
+      toast.error('Sube un archivo primero');
     }
   };
 
@@ -136,13 +258,24 @@ export default function VisualAssetMatrix() {
         throw new Error('No video URL in Fal.ai response');
       }
 
+      const aiMeta: SelectedVideoMeta = {
+        url: videoUrl,
+        thumbnail: videoUrl,
+        assetId,
+        assetType: 'ai_generated',
+        visualPrompt: visualPrompt || undefined,
+      };
+
       await supabase.from('visual_assets').upsert({
         id: assetId,
         url: videoUrl,
+        asset_type: 'ai_generated',
+        visual_prompt: visualPrompt || null,
         updated_at: new Date(),
       });
 
       setUploadedAssets(prev => ({ ...prev, [assetId]: videoUrl }));
+      setAssetMeta(prev => ({ ...prev, [assetId]: aiMeta }));
       toast.success('Video generado por IA exitosamente');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error generando video';
@@ -193,12 +326,22 @@ export default function VisualAssetMatrix() {
         const videoUrl = result.video?.url || result.output?.video_url || result.asset?.url || result.url;
 
         if (videoUrl) {
+          const aiMeta: SelectedVideoMeta = {
+            url: videoUrl,
+            thumbnail: videoUrl,
+            assetId,
+            assetType: 'ai_generated',
+            visualPrompt: visualPrompt || undefined,
+          };
           await supabase.from('visual_assets').upsert({
             id: assetId,
             url: videoUrl,
+            asset_type: 'ai_generated',
+            visual_prompt: visualPrompt || null,
             updated_at: new Date(),
           });
           setUploadedAssets(prev => ({ ...prev, [assetId]: videoUrl }));
+          setAssetMeta(prev => ({ ...prev, [assetId]: aiMeta }));
           successCount++;
         }
       } catch (e) {
@@ -216,14 +359,44 @@ export default function VisualAssetMatrix() {
     toast.success(`${successCount}/${assetIds.length} videos generados`);
   };
 
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return '';
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const UploadProgressCircle = ({ progress }: { progress: number }) => (
+    <div className="relative w-12 h-12">
+      <svg className="w-12 h-12 -rotate-90" viewBox="0 0 48 48">
+        <circle cx="24" cy="24" r="20" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
+        <circle
+          cx="24" cy="24" r="20" fill="none"
+          stroke="currentColor" strokeWidth="3"
+          strokeLinecap="round"
+          strokeDasharray={`${2 * Math.PI * 20}`}
+          strokeDashoffset={`${2 * Math.PI * 20 * (1 - progress / 100)}`}
+          className="text-emerald-400 transition-all duration-300"
+        />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-[9px] font-mono text-emerald-400 tabular-nums">
+        {Math.round(progress)}%
+      </span>
+    </div>
+  );
+
   const AssetCard = ({ asset }: { asset: any }) => {
-    const assetUrl = uploadedAssets[asset.id];
+    const assetId = asset.id;
+    const assetUrl = uploadedAssets[assetId];
     const isUploaded = !!assetUrl;
     const isVideo = assetUrl && (assetUrl.includes('.mp4') || assetUrl.includes('.mov') || assetUrl.includes('.webm'));
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isHovered, setIsHovered] = useState(false);
-    const isLoading = loadingIds[asset.id] === 'generating';
-    const isUploading = loadingIds[asset.id] === 'uploading';
+    const isLoading = loadingIds[assetId] === 'generating';
+    const isUploading = loadingIds[assetId] === 'uploading';
+    const progress = uploadProgress[assetId] || 0;
+    const meta = assetMeta[assetId];
+    const isDragOver = dragOverAssetId === assetId;
+    const assetPrompt = meta?.visualPrompt || visualPrompt || '';
 
     useEffect(() => {
       if (videoRef.current) {
@@ -240,8 +413,15 @@ export default function VisualAssetMatrix() {
       <motion.div
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        onDragOver={(e) => handleDragOver(e, assetId)}
+        onDragLeave={(e) => handleDragLeave(e, assetId)}
+        onDrop={(e) => handleDrop(e, assetId)}
         whileHover={{ scale: 1.02 }}
-        className="group relative bg-zinc-900/50 border border-white/5 rounded-3xl overflow-hidden aspect-[4/5] flex flex-col transition-all duration-500 hover:border-emerald-500/30 shadow-2xl"
+        className={`group relative bg-zinc-900/50 border rounded-3xl overflow-hidden aspect-[4/5] flex flex-col transition-all duration-500 shadow-2xl ${
+          isDragOver
+            ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_40px_rgba(16,185,129,0.15)]'
+            : 'border-white/5 hover:border-emerald-500/30'
+        }`}
       >
         <div className="absolute inset-0 z-0">
           {isLoading ? (
@@ -252,8 +432,23 @@ export default function VisualAssetMatrix() {
               </div>
               <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest animate-pulse">Generating AI Video...</span>
               <span className="text-[8px] font-mono text-zinc-600 max-w-[200px] text-center leading-relaxed px-4">
-                &ldquo;{visualPrompt.substring(0, 80)}...&rdquo;
+                &ldquo;{assetPrompt.substring(0, 80)}...&rdquo;
               </span>
+            </div>
+          ) : isUploading ? (
+            <div className="w-full h-full bg-black flex flex-col items-center justify-center gap-4">
+              <UploadProgressCircle progress={progress} />
+              <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest animate-pulse">Uploading...</span>
+              {meta?.fileName && (
+                <span className="text-[8px] font-mono text-zinc-500 max-w-[180px] truncate px-4">{meta.fileName}</span>
+              )}
+            </div>
+          ) : isDragOver ? (
+            <div className="w-full h-full bg-emerald-500/5 flex flex-col items-center justify-center gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border-2 border-emerald-400/50 flex items-center justify-center">
+                <Upload className="text-emerald-400 w-8 h-8" />
+              </div>
+              <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest">Drop to upload</span>
             </div>
           ) : isUploaded ? (
             isVideo ? (
@@ -274,10 +469,19 @@ export default function VisualAssetMatrix() {
             )
           ) : (
             <div className="w-full h-full bg-black flex flex-col items-center justify-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-zinc-800/50 border border-white/5 flex items-center justify-center">
-                <asset.icon className="text-zinc-600 w-8 h-8" />
+              <div className="w-16 h-16 rounded-2xl bg-zinc-800/50 border border-white/5 flex items-center justify-center group-hover:bg-emerald-500/10 group-hover:border-emerald-500/30 transition-all">
+                <asset.icon className="text-zinc-600 group-hover:text-emerald-400 w-8 h-8 transition-colors" />
               </div>
-              <span className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">Waiting for Deployment</span>
+              <div className="text-center px-6">
+                <span className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest leading-relaxed block">
+                  Drop file or click Upload
+                </span>
+                {assetPrompt && (
+                  <span className="text-[7px] font-mono text-zinc-700 italic block mt-1.5 line-clamp-2 max-w-[200px] mx-auto">
+                    &ldquo;{assetPrompt.substring(0, 70)}...&rdquo;
+                  </span>
+                )}
+              </div>
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
@@ -286,13 +490,29 @@ export default function VisualAssetMatrix() {
         <div className="relative z-10 mt-auto p-4 flex flex-col gap-1">
           <div className="flex items-center justify-between">
             <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-[0.2em]">{asset.agent} &bull; {asset.type}</span>
-            {isUploaded && <CheckCircle2 size={12} className="text-emerald-500" />}
+            {isUploaded && !isUploading && (
+              <div className="flex items-center gap-1.5">
+                {meta?.assetType && (
+                  <span className={`px-1.5 py-0.5 rounded text-[7px] font-mono uppercase tracking-widest ${
+                    meta.assetType === 'ai_generated'
+                      ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
+                      : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  }`}>
+                    {meta.assetType === 'ai_generated' ? 'AI' : 'CMS'}
+                  </span>
+                )}
+                <CheckCircle2 size={12} className="text-emerald-500" />
+              </div>
+            )}
           </div>
           <h3 className="text-lg font-black text-white uppercase tracking-tighter leading-none">{asset.title}</h3>
+          {meta?.fileSize && (
+            <span className="text-[8px] font-mono text-zinc-600">{meta.fileName} &bull; {formatFileSize(meta.fileSize)}</span>
+          )}
         </div>
 
         <AnimatePresence>
-          {isHovered && !isLoading && (
+          {isHovered && !isLoading && !isUploading && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -313,28 +533,25 @@ export default function VisualAssetMatrix() {
 
                 <div className="flex flex-col gap-2">
                   <div className="flex gap-2">
-                    <label className="flex-1 bg-white text-black h-10 rounded-xl flex items-center justify-center gap-2 text-[11px] font-black uppercase tracking-tighter cursor-pointer hover:bg-zinc-200 transition-colors">
-                      <input type="file" accept="image/*,video/*" onChange={(e) => handleFileUpload(e, asset.id)} disabled={isUploading} className="hidden" />
-                      {isUploading ? <Loader2 size={14} className="animate-spin" /> : <><Upload size={14} /> Upload</>}
+                    <label className="flex-1 bg-white/10 backdrop-blur border border-white/20 text-white h-10 rounded-xl flex items-center justify-center gap-2 text-[11px] font-black uppercase tracking-tighter cursor-pointer hover:bg-white/20 transition-colors active:scale-95">
+                      <input type="file" accept="image/*,video/*" onChange={(e) => handleFileUpload(e, assetId)} className="hidden" />
+                      <Upload size={14} /> Upload
                     </label>
                     <button
-                      onClick={() => {
-                        if (isUploaded) {
-                          setSelectedVideo({ url: assetUrl, thumbnail: assetUrl });
-                          toast.success('Asset inyectado en el Social Lab');
-                          navigate('/dashboard/social');
-                        } else {
-                          toast.error('Sube un archivo primero');
-                        }
-                      }}
-                      className="flex-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 h-10 rounded-xl flex items-center justify-center gap-2 text-[11px] font-black uppercase tracking-tighter hover:bg-emerald-500/30 transition-colors"
+                      onClick={() => injectIntoSocialLab(assetId)}
+                      disabled={!isUploaded}
+                      className={`flex-1 h-10 rounded-xl flex items-center justify-center gap-2 text-[11px] font-black uppercase tracking-tighter transition-all active:scale-95 ${
+                        isUploaded
+                          ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/30'
+                          : 'bg-zinc-800/50 border border-zinc-700 text-zinc-600 cursor-not-allowed'
+                      }`}
                     >
-                      <Play size={14} fill="currentColor" /> Select
+                      <Play size={14} fill="currentColor" /> Inject
                     </button>
                   </div>
                   <button
-                    onClick={() => handleFalGenerate(asset.id)}
-                    disabled={!hasFalToken || !!loadingIds[asset.id]}
+                    onClick={() => handleFalGenerate(assetId)}
+                    disabled={!hasFalToken || !!loadingIds[assetId]}
                     className={`w-full h-10 rounded-xl flex items-center justify-center gap-2 text-[11px] font-black uppercase tracking-tighter transition-all active:scale-95 ${
                       hasFalToken
                         ? 'bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/30'

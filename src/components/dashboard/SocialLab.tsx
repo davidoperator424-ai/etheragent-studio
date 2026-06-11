@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { Sparkles, Zap, Loader2, Upload, Video, Image as ImageIcon, Heart, MessageCircle, Share2, MoreHorizontal, UserCircle2, Bookmark, Send, Play, ArrowRight, Brain, Copy, Eye, Clapperboard, CheckCircle2, X, FileUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCampaignStore } from '@/store/useCampaignStore';
+import { useCampaignStore, SelectedVideoMeta } from '@/store/useCampaignStore';
 import { CampaignWorkspace } from '@/lib/geminiService';
 import { toast } from 'sonner';
 
@@ -765,9 +765,20 @@ export default function SocialLab() {
 
             {currentAsset?.video_url && (
               <div className="absolute top-8 left-0 w-full flex justify-center z-30 pointer-events-none">
-                <span className="px-4 py-1.5 bg-emerald-500/20 backdrop-blur-md border border-emerald-400/30 rounded-full text-[10px] text-emerald-300 font-mono tracking-widest uppercase shadow-lg flex items-center gap-1.5">
-                  <CheckCircle2 size={10} /> Video Renderizado
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="px-4 py-1.5 bg-emerald-500/20 backdrop-blur-md border border-emerald-400/30 rounded-full text-[10px] text-emerald-300 font-mono tracking-widest uppercase shadow-lg flex items-center gap-1.5">
+                    <CheckCircle2 size={10} /> Video Renderizado
+                  </span>
+                  {selectedVideo?.assetType && (
+                    <span className={`px-3 py-1.5 backdrop-blur-md border rounded-full text-[9px] font-mono tracking-widest uppercase shadow-lg ${
+                      selectedVideo.assetType === 'ai_generated'
+                        ? 'bg-indigo-500/20 border-indigo-400/30 text-indigo-300'
+                        : 'bg-emerald-500/20 border-emerald-400/30 text-emerald-300'
+                    }`}>
+                      🤖 {selectedVideo.assetType === 'ai_generated' ? 'Fal.ai' : 'Manual'}
+                    </span>
+                  )}
+                </div>
               </div>
             )}
 
