@@ -5,12 +5,14 @@ import { Sparkles, Zap, Loader2, Upload, Video, Image as ImageIcon, Heart, Messa
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCampaignStore } from '@/store/useCampaignStore';
+import { CampaignWorkspace } from '@/lib/geminiService';
 import { toast } from 'sonner';
 
 interface CampaignAsset {
   type: string;
   duration: string;
   hook: string;
+  narrative_body?: string;
   voiceover_script: string;
   visual_description: string;
   on_screen_text: string[];
@@ -23,23 +25,24 @@ interface CampaignAsset {
   thumbnail_url?: string;
 }
 
-interface CampaignData {
-  detected_sector: string;
-  strategy_score: number;
-  angles: string[];
-  creative_rationale: string;
-  assets: CampaignAsset[];
-  audience: { persona: string; psychographics: string; pain_points: string; desires: string; };
-  youtube_seo: { video_title: string; video_description: string; hashtags: string[]; };
+type CampaignDataPayload = CampaignWorkspace & {
+  detected_sector?: string;
+  strategy_score?: number;
+  angles?: string[];
+  creative_rationale?: string;
+  assets?: CampaignAsset[];
+  audience?: { persona: string; psychographics: string; pain_points: string; desires: string; };
+  youtube_seo?: { video_title: string; video_description: string; hashtags: string[]; };
   thumbnail_idea?: string;
-}
+  video_url?: string;
+};
 
 interface CampaignRecord {
   id: string;
   target_url: string;
   detected_sector: string;
   strategy_score: number;
-  campaign_data: CampaignData;
+  campaign_data: CampaignDataPayload;
   created_at: string;
 }
 
@@ -117,6 +120,8 @@ export default function SocialLab() {
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const setWorkspace = useCampaignStore(state => state.setWorkspace);
+
   useEffect(() => {
     const fetchCampaign = async () => {
       if (!user) { setLoading(false); return; }
@@ -133,7 +138,11 @@ export default function SocialLab() {
           error = res.error;
         }
         if (error && error.code !== 'PGRST116') throw error;
-        if (data) setCampaign(data as CampaignRecord);
+        if (data) {
+          setCampaign(data as CampaignRecord);
+          // Sync with store for other components
+          setWorkspace(data.campaign_data);
+        }
       } catch (err) {
         console.error('Error fetching campaign:', err);
       } finally {
@@ -141,9 +150,29 @@ export default function SocialLab() {
       }
     };
     fetchCampaign();
-  }, [searchParams, user]);
+  }, [searchParams, user, setWorkspace]);
 
-  const baseAsset = campaign?.campaign_data?.assets?.[activeAssetIndex];
+  // Detectar si es el nuevo formato B2B o el antiguo
+  const campaignData = campaign?.campaign_data as CampaignDataPayload;
+  const isNewFormat = !!campaignData?.hook;
+
+  // Construir el asset base unificando ambas estructuras
+  const baseAsset = isNewFormat ? {
+    type: 'B2B Strategy',
+    duration: '30-60',
+    on_screen_text: campaignData.on_screen_text || [],
+    visual_description: campaignData.visual_description,
+    call_to_action: campaignData.call_to_action,
+    hook: campaignData.hook,
+    narrative_body: campaignData.narrative_body,
+    voiceover_script: campaignData.narrative_body, // Reutilizamos narrativa como voiceover
+    music_background: 'Ambient Tech / Corporate Modern',
+    sound_effects: 'UI Clicks, Digital Swish',
+    emotional_tone: 'Professional & Innovative',
+    pacing_notes: 'Dynamic & Precise',
+    video_url: null,
+    thumbnail_url: null
+  } : campaignData?.assets?.[activeAssetIndex];
 
   // Override video_url if an asset was selected from the VisualMatrix
   const currentAsset = baseAsset ? {
@@ -168,7 +197,7 @@ export default function SocialLab() {
     setUploading(true);
     try {
       const ext = file.name.split('.').pop() || 'mp4';
-      const filePath = `${campaign.id}/${currentAsset.type}.${ext}`;
+      const filePath = `${campaign.id}/${currentAsset.type || 'video'}.${ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from('campaign-videos')
@@ -180,11 +209,15 @@ export default function SocialLab() {
         .from('campaign-videos')
         .getPublicUrl(filePath);
 
-      const updatedAssets = campaign.campaign_data.assets.map((a, i) =>
-        i === activeAssetIndex ? { ...a, video_url: publicUrl } : a
-      );
-
-      const updatedCampaignData = { ...campaign.campaign_data, assets: updatedAssets };
+      let updatedCampaignData;
+      if (isNewFormat) {
+        updatedCampaignData = { ...campaign.campaign_data, video_url: publicUrl };
+      } else {
+        const updatedAssets = (campaign.campaign_data as any).assets.map((a: any, i: number) =>
+          i === activeAssetIndex ? { ...a, video_url: publicUrl } : a
+        );
+        updatedCampaignData = { ...campaign.campaign_data, assets: updatedAssets };
+      }
 
       const { error: updateError } = await supabase
         .from('nexus_youtube_ads')
@@ -193,7 +226,7 @@ export default function SocialLab() {
 
       if (updateError) throw updateError;
 
-      setCampaign({ ...campaign, campaign_data: updatedCampaignData });
+      setCampaign({ ...campaign, campaign_data: updatedCampaignData as any });
       toast.success('Video subido y vinculado a la campaña');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error al subir video';
@@ -202,7 +235,7 @@ export default function SocialLab() {
     } finally {
       setUploading(false);
     }
-  }, [campaign, currentAsset, activeAssetIndex, user]);
+  }, [campaign, currentAsset, activeAssetIndex, user, isNewFormat]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -317,11 +350,11 @@ export default function SocialLab() {
         <header className="flex items-center justify-between border-b border-white/10 pb-6 mb-6">
           <div className="flex items-center gap-4">
             <div className="relative w-14 h-14 rounded-full border-2 border-emerald-500/50 flex items-center justify-center bg-zinc-900">
-              <span className="font-black text-2xl text-white">V</span>
+              <span className="font-black text-2xl text-emerald-500">N</span>
             </div>
             <div>
-              <h2 className="text-2xl font-bold">Valeria M.</h2>
-              <p className="text-emerald-500 font-mono text-xs tracking-widest uppercase">Lead Growth Hacker • Active Session</p>
+              <h2 className="text-2xl font-bold">Neural Strategy Engine</h2>
+              <p className="text-emerald-500 font-mono text-xs tracking-widest uppercase">B2B Campaign Director • AI Core</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -348,8 +381,8 @@ export default function SocialLab() {
             )}
           </div>
 
-          {/* Format Tabs */}
-          {data.assets && data.assets.length > 0 && (
+          {/* Format Tabs - Solo se muestran si no es el nuevo formato o si hay múltiples assets */}
+          {!isNewFormat && data.assets && data.assets.length > 0 && (
             <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
               <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest shrink-0">Formatos:</span>
               {data.assets.map((asset: CampaignAsset, i: number) => (
@@ -368,18 +401,58 @@ export default function SocialLab() {
             </div>
           )}
 
-          {/* Marketing Angles */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-zinc-900/50 backdrop-blur-md border border-white/10 p-5 rounded-2xl rounded-tl-sm w-full mb-5">
-            <p className="text-zinc-300 text-sm font-medium mb-3 flex items-center gap-2">
-              <Sparkles size={14} className="text-emerald-500" /> Ángulos de Marketing
-            </p>
-            <div className="p-3 bg-black/60 border border-emerald-500/20 rounded-lg font-mono text-xs text-emerald-400 leading-relaxed whitespace-pre-wrap">
-              {data.angles?.map((angle: string, i: number) => `${i + 1}. ${angle}`).join('\n') || 'Sin ángulos detectados'}
+          {/* Hook & Narrative Body (New Format) or Marketing Angles (Legacy) */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-zinc-900/50 backdrop-blur-md border border-white/5 p-5 rounded-2xl w-full mb-5">
+            {isNewFormat ? (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-emerald-500 text-[10px] font-mono tracking-widest uppercase mb-2 flex items-center gap-2">
+                    <Zap size={12} /> Gancho de Alto Impacto
+                  </p>
+                  <blockquote className="border-l-2 border-emerald-500/30 pl-4 py-1 italic text-zinc-200 font-medium">
+                    "{currentAsset?.hook}"
+                  </blockquote>
+                </div>
+                <div>
+                  <p className="text-zinc-500 text-[10px] font-mono tracking-widest uppercase mb-2">Narrativa de Campaña</p>
+                  <p className="text-sm text-zinc-400 leading-relaxed">
+                    {currentAsset?.narrative_body}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <p className="text-zinc-300 text-sm font-medium mb-3 flex items-center gap-2">
+                  <Sparkles size={14} className="text-emerald-500" /> Ángulos de Marketing
+                </p>
+                <div className="p-3 bg-black/60 border border-emerald-500/20 rounded-lg font-mono text-xs text-emerald-400 leading-relaxed whitespace-pre-wrap">
+                  {data.angles?.map((angle: string, i: number) => `${i + 1}. ${angle}`).join('\n') || 'Sin ángulos detectados'}
+                </div>
+              </>
+            )}
+          </motion.div>
+
+          {/* Visual Description / Prompt Section */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-zinc-900/50 border border-white/5 p-5 rounded-2xl w-full mb-5 group relative">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-zinc-300 text-sm font-medium flex items-center gap-2">
+                <Video size={14} className="text-indigo-400" /> Estrategia Creativa Procesada
+              </p>
+              <button 
+                onClick={() => currentAsset && handleCopy(currentAsset.visual_description, 'Visual Description')}
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-white/5 rounded-lg text-zinc-500 hover:text-white"
+                title="Copiar Prompt"
+              >
+                <Copy size={14} />
+              </button>
+            </div>
+            <div className="p-4 bg-black/40 border border-white/5 rounded-xl font-mono text-xs text-zinc-400 leading-relaxed max-h-[250px] overflow-y-auto custom-scrollbar">
+              {currentAsset?.visual_description || 'Procesando prompt visual...'}
             </div>
           </motion.div>
 
-          {/* Structured Visual Description */}
-          {currentAsset && sections.length > 0 && (
+          {/* Structured Visual Description (Only for Legacy if it matches the format) */}
+          {!isNewFormat && currentAsset && sections.length > 0 && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3 mb-5">
               {sections.map((section, i) => (
                 <div
@@ -474,51 +547,39 @@ export default function SocialLab() {
             </motion.div>
           )}
 
-          {/* Full Prompt Details */}
+          {/* Asset Details Grid */}
           {currentAsset && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-zinc-900/50 border border-white/10 p-5 rounded-2xl rounded-tl-sm w-full mb-5">
-              <div className="space-y-4">
-                <div>
-                  <h5 className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest mb-2 flex items-center gap-2"><Zap size={10} /> Hook ({currentAsset.duration}s)</h5>
-                  <p className="text-sm text-white italic font-medium">"{currentAsset.hook}"</p>
-                </div>
-                <div>
-                  <h5 className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-2">Voiceover Script</h5>
-                  <p className="text-xs text-zinc-300 leading-relaxed font-serif italic">{currentAsset.voiceover_script}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-zinc-900/30 border border-white/5 p-5 rounded-2xl w-full mb-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="space-y-4">
                   <div>
-                    <h5 className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">🎵 Música</h5>
-                    <p className="text-xs text-zinc-400">{currentAsset.music_background}</p>
+                    <h5 className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1.5">Tono Emocional</h5>
+                    <p className="text-xs text-zinc-300 capitalize">{currentAsset.emotional_tone}</p>
                   </div>
                   <div>
-                    <h5 className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">🔊 SFX</h5>
-                    <p className="text-xs text-zinc-400">{currentAsset.sound_effects}</p>
+                    <h5 className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1.5">Pacing / Ritmo</h5>
+                    <p className="text-xs text-zinc-300">{currentAsset.pacing_notes}</p>
+                  </div>
+                  <div>
+                    <h5 className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1.5">Call to Action</h5>
+                    <p className="text-xs text-emerald-400 font-bold">{currentAsset.call_to_action}</p>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-4">
                   <div>
-                    <h5 className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">Tono Emocional</h5>
-                    <p className="text-xs text-zinc-400 capitalize">{currentAsset.emotional_tone}</p>
+                    <h5 className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1.5">Background Audio</h5>
+                    <p className="text-xs text-zinc-300">{currentAsset.music_background}</p>
                   </div>
-                  <div>
-                    <h5 className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">Pacing</h5>
-                    <p className="text-xs text-zinc-400">{currentAsset.pacing_notes}</p>
-                  </div>
-                </div>
-                {currentAsset.on_screen_text.length > 0 && (
-                  <div>
-                    <h5 className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">Textos en pantalla</h5>
-                    <div className="flex flex-wrap gap-1.5">
-                      {currentAsset.on_screen_text.map((t, i) => (
-                        <span key={i} className="px-2 py-0.5 bg-black/40 border border-white/10 rounded text-[10px] text-indigo-300 font-mono">"{t}"</span>
-                      ))}
+                  {currentAsset.on_screen_text?.length > 0 && (
+                    <div>
+                      <h5 className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1.5">Textos Destacados</h5>
+                      <div className="flex flex-wrap gap-1.5">
+                        {currentAsset.on_screen_text.map((t: string, i: number) => (
+                          <span key={i} className="px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded text-[9px] text-indigo-300 font-mono">"{t}"</span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-                <div>
-                  <h5 className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-1">CTA</h5>
-                  <p className="text-xs text-emerald-400 font-semibold">{currentAsset.call_to_action}</p>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -526,29 +587,30 @@ export default function SocialLab() {
 
           {/* Copy buttons */}
           {currentAsset && (
-            <div className="flex gap-2">
-              <button onClick={handleCopyMaster} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition-all active:scale-95">
+            <div className="flex gap-3">
+              <button onClick={handleCopyMaster} className="flex-1 flex items-center justify-center gap-2 px-4 py-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition-all active:scale-95">
                 <Clapperboard size={14} /> Copiar Prompt Maestro
               </button>
-              <button onClick={() => handleCopy(currentAsset.visual_description, 'Prompt Visual')} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white hover:bg-white/10 transition-all active:scale-95">
+              <button onClick={() => handleCopy(currentAsset.visual_description, 'Prompt Visual')} className="flex-1 flex items-center justify-center gap-2 px-4 py-4 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white hover:bg-white/10 transition-all active:scale-95">
                 <Eye size={14} className="text-emerald-400" /> Copiar Visual
               </button>
             </div>
           )}
 
-          {/* Audience + Creative Rationale */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-emerald-900/20 border border-emerald-500/20 p-5 rounded-2xl rounded-tr-sm w-full mt-5">
-            <p className="text-sm text-emerald-100 leading-relaxed">
-              ⚡ {data.creative_rationale?.substring(0, 250) || 'Estrategia creativa procesada.'}...
-            </p>
-          </motion.div>
 
+
+          {/* Audience Insights */}
           {data.audience && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="bg-zinc-900/50 border border-white/10 p-5 rounded-2xl rounded-tl-sm w-full mt-4">
-              <p className="text-zinc-300 text-sm font-medium mb-2 flex items-center gap-2">
-                <UserCircle2 size={14} className="text-indigo-400" /> Target: {data.audience.persona}
-              </p>
-              <p className="text-xs text-zinc-400 italic leading-relaxed">"{data.audience.psychographics}"</p>
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="bg-zinc-900/50 border border-white/5 p-5 rounded-2xl w-full mt-4">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
+                  <UserCircle2 size={16} className="text-indigo-400" />
+                </div>
+                <div>
+                  <p className="text-zinc-200 text-sm font-semibold mb-1">Target Persona: {data.audience.persona}</p>
+                  <p className="text-xs text-zinc-500 italic leading-relaxed">"{data.audience.psychographics}"</p>
+                </div>
+              </div>
             </motion.div>
           )}
         </div>

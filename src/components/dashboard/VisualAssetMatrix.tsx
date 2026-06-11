@@ -52,7 +52,8 @@ export default function VisualAssetMatrix() {
   const { tokens } = useTokenStore();
   const setSelectedVideo = useCampaignStore(state => state.setSelectedVideo);
   const workspace = useCampaignStore(state => state.workspace);
-  const hasFalToken = !!tokens.fal;
+  const falKey = tokens.fal || import.meta.env.VITE_FAL_KEY;
+  const hasFalToken = !!falKey;
 
   const visualPrompt = workspace?.visual_description || '';
 
@@ -113,7 +114,7 @@ export default function VisualAssetMatrix() {
       const response = await fetch(`https://fal.run/${FAL_AI_MODEL}`, {
         method: 'POST',
         headers: {
-          'Authorization': `Key ${tokens.fal}`,
+          'Authorization': `Key ${falKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -176,7 +177,7 @@ export default function VisualAssetMatrix() {
         const response = await fetch(`https://fal.run/${FAL_AI_MODEL}`, {
           method: 'POST',
           headers: {
-            'Authorization': `Key ${tokens.fal}`,
+            'Authorization': `Key ${falKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
