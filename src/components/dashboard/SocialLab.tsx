@@ -197,13 +197,20 @@ export default function SocialLab() {
     setUploading(true);
     try {
       const ext = file.name.split('.').pop() || 'mp4';
-      const filePath = `${campaign.id}/${currentAsset.type || 'video'}.${ext}`;
+      const timestamp = Date.now();
+      const filePath = `${campaign.id}/${currentAsset.type || 'video'}_${timestamp}.${ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from('campaign-videos')
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, file);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError.message);
+        if (uploadError.message?.includes('policy') || uploadError.message?.includes('row-level')) {
+          throw new Error('Permiso denegado para subir al bucket. Si usas un navegador, asegúrate de estar autenticado.');
+        }
+        throw uploadError;
+      }
 
       const { data: { publicUrl } } = supabase.storage
         .from('campaign-videos')
@@ -224,7 +231,15 @@ export default function SocialLab() {
         .update({ campaign_data: updatedCampaignData })
         .eq('id', campaign.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('DB update error:', updateError.message);
+        if (updateError.message?.includes('policy') || updateError.message?.includes('row-level')) {
+          console.warn('RLS bloqueó la actualización de nexus_youtube_ads. El video se subió pero no se vinculó a la campaña.');
+          toast.warning('Video subido pero no vinculado a la campaña (error RLS). Contacta al administrador.');
+          return;
+        }
+        throw updateError;
+      }
 
       setCampaign({ ...campaign, campaign_data: updatedCampaignData as any });
       toast.success('Video subido y vinculado a la campaña');

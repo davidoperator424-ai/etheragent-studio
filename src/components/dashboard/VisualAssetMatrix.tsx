@@ -65,31 +65,44 @@ export default function VisualAssetMatrix() {
 
   useEffect(() => {
     const checkExistingAssets = async () => {
-      const { data } = await supabase
+      // Try extended columns first (requires DB migration), fallback to basic
+      const { data, error } = await supabase
         .from('visual_assets')
         .select('id, url, file_name, file_type, file_size, asset_type, visual_prompt, thumbnail_url, bucket_path')
         .like('id', 'demo_%');
-      if (data) {
-        const uploaded: Record<string, string> = {};
-        const meta: Record<string, SelectedVideoMeta> = {};
-        data.forEach(item => {
-          if (item.url) {
-            uploaded[item.id] = item.url;
-            meta[item.id] = {
-              url: item.url,
-              thumbnail: item.thumbnail_url || item.url,
-              assetId: item.id,
-              assetType: item.asset_type || 'uploaded',
-              visualPrompt: item.visual_prompt || undefined,
-              fileName: item.file_name || undefined,
-              fileType: item.file_type || undefined,
-              fileSize: item.file_size || undefined,
-            };
-          }
-        });
-        setUploadedAssets(uploaded);
-        setAssetMeta(prev => ({ ...prev, ...meta }));
+
+      if (error || !data) {
+        const { data: fallback } = await supabase
+          .from('visual_assets')
+          .select('id, url')
+          .like('id', 'demo_%');
+        if (fallback) {
+          const uploaded: Record<string, string> = {};
+          fallback.forEach(item => { if (item.url) uploaded[item.id] = item.url; });
+          setUploadedAssets(uploaded);
+        }
+        return;
       }
+
+      const uploaded: Record<string, string> = {};
+      const meta: Record<string, SelectedVideoMeta> = {};
+      data.forEach(item => {
+        if (item.url) {
+          uploaded[item.id] = item.url;
+          meta[item.id] = {
+            url: item.url,
+            thumbnail: item.thumbnail_url || item.url,
+            assetId: item.id,
+            assetType: item.asset_type || 'uploaded',
+            visualPrompt: item.visual_prompt || undefined,
+            fileName: item.file_name || undefined,
+            fileType: item.file_type || undefined,
+            fileSize: item.file_size || undefined,
+          };
+        }
+      });
+      setUploadedAssets(uploaded);
+      setAssetMeta(prev => ({ ...prev, ...meta }));
     };
     checkExistingAssets();
   }, []);
@@ -110,7 +123,6 @@ export default function VisualAssetMatrix() {
         .upload(filePath, file, { upsert: true });
 
       if (uploadError) {
-        console.warn(`⚠️ Intento en '${BUCKET_NAME}' falló: ${uploadError.message}. Iniciando Fallback a 'visual-assets'...`);
         if (uploadError.message?.includes('bucket') || uploadError.message?.includes('not found')) {
           const legacyPath = `${assetId}-${timestamp}.${fileExt}`;
           const { error: legacyError } = await supabase.storage
@@ -212,15 +224,6 @@ export default function VisualAssetMatrix() {
   const injectIntoSocialLab = (assetId: string) => {
     const meta = assetMeta[assetId];
     if (meta) {
-      console.table({
-        'Acción': 'Inyectando a Zustand',
-        'Asset ID': meta.assetId,
-        'Tipo': meta.assetType,
-        'Prompt': meta.visualPrompt ? 'Presente' : 'Ausente',
-        'URL': meta.url?.substring(0, 50) + '...',
-        'Archivo': meta.fileName || 'N/A',
-        'Tamaño': meta.fileSize ? `${(meta.fileSize / 1024 / 1024).toFixed(1)}MB` : 'N/A',
-      });
       setSelectedVideo(meta);
       toast.success('Asset inyectado en el Social Lab');
       navigate('/dashboard/social');
