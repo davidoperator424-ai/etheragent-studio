@@ -10,6 +10,7 @@ import { api } from '../../services/api';
 import type { Avatar } from '../../types';
 import { useToast } from '../../hooks/use-toast';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCampaignStore } from '@/store/useCampaignStore';
 
 interface Props {
   selectedAvatar: Avatar | null;

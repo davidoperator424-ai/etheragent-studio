@@ -9,6 +9,7 @@ import {
 import { supabase } from '@/lib/supabaseClient';
 import { usePerformanceMetrics } from '@/hooks/usePerformanceMetrics';
 import { useVoiceStore } from '@/store/useVoiceStore';
+import { useCampaignStore } from '@/store/useCampaignStore';
 import { useAuth } from '@/contexts/AuthContext';
 
 const AGENT_INFO = {
